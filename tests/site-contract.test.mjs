@@ -67,6 +67,7 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /hashtree-updater/);
   assert.match(guide, /Hashtree routes/);
   assert.match(guide, /public exit-node marketplace/);
+  assert.match(guide, /The broader app catalog is \[sites\.iris\.to\]\(https:\/\/sites\.iris\.to\//);
   assert.match(guide, /sites\.iris\.to.*redirects there/s);
   assert.doesNotMatch(guide, /These comparisons are orientation|Composition map|Open boundaries|Process composition|Same-host application topology/);
   assert.doesNotMatch(guide, /\/Users\/|~\/src\/|wiki\/projects|release candidate|local master/i);
