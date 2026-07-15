@@ -68,12 +68,12 @@ Hashtree HTL or settlement policy.
 
 | Area | Evidence as of 2026-07-16 | Remaining integration risk |
 | --- | --- | --- |
-| FIPS | Rust 0.4.0 provides authenticated links, fixed loopback UDP rendezvous, capability exchange, routing, and multiple carriers. The same-host identity hint is proved by the ordinary authenticated handshake. | Continue cross-carrier churn, bounded-admission, mobile lifecycle, and Rust/browser interoperability gates. A local peer must never become a mandatory daemon or implicit egress owner. |
+| FIPS | Rust 0.4.1 and the matching TypeScript runtime tuple provide authenticated links, fixed loopback UDP rendezvous, capability exchange, routing, and multiple carriers. The same-host identity hint is proved by the ordinary authenticated handshake. Seven repeated Chromium-to-Rust process gates and the unchanged 14-case browser interop suite passed, including forced browser death and reconnection from a replacement page. | Continue cross-carrier churn, bounded-admission, and mobile lifecycle gates. A local peer must never become a mandatory daemon or implicit egress owner. |
 | `fips-tcp` | Rust crates 0.2.0 provide reliable ordered streams over FIPS and cross-language wire fixtures. | Reset, retransmission, acknowledgment, backpressure, and long loss/reordering simulations belong here. Application record delivery is a separate semantic layer. |
 | `nostr-pubsub` | Core 0.1.11 and FIPS adapter 0.3.1 share the standard `REQ`/`EVENT`/`CLOSE` service and have simulator, stress, role-blind discovery, and Cashu-incentive gates. | Browser and native consumers must use the shared carrier instead of product-private endpoint namespaces. Offline history remains a storage concern. |
 | Hashtree | Core 0.2.84, FIPS transport 0.4.0, and CLI 0.2.85 use one `BlobRoute` request/reply model. The duplicate raw-datagram FIPS mesh carrier is removed. `hashtree-network` remains the canonical HTL router. | Complete native/TypeScript route parity, then exercise multi-hop HTL, churn, corrupt providers, caching, and paid routes through released artifacts. |
-| Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, and exact fact lookup exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
-| Cashu service layer | The standalone `cashu-service` repository owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. | Prove crash-safe, replay-safe paid bandwidth and storage flows against a real local mint. Mint trust and cross-mint settlement remain explicit policy. |
+| Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, exact fact lookup, and the `nostr-identity` 0.4.0 crate exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
+| Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. Its reusable simulation feature starts a real loopback CDK mint with SQLite and covers proof transfer and double-spend rejection. | Compose that foundation into crash-safe, replay-safe paid bandwidth and storage product flows with outage and restart recovery. Mint trust and cross-mint settlement remain explicit policy. |
 | Iris Chat | Native 0.1.36 uses the FIPS 0.4 stack, shared decentralized pub/sub, and paged device synchronization. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
 | Nostr VPN | Its shared FIPS/pub-sub integration preserves explicit application-owned UDP roster links and standalone operation. | Test roster churn concurrently with other local products. Do not delegate VPN routes or roster policy to a same-host process. |
 | Iris Drive | The canonical storage interface and same-host provider path use Hashtree blob routes, while the product retains standalone storage and outbound links. | Finish the native carrier release gate and repeatedly prove large multi-frame retrieval, provider death/replacement, and fallback through the product-owned route. |
@@ -82,6 +82,36 @@ Hashtree HTL or settlement policy.
 Versions identify the verified native release boundary on the stated date; the
 repository sources and package registries remain the authority for later
 versions.
+
+### Reproducible native release evidence
+
+- FIPS Rust `v0.4.1` is commit
+  `5af4f0d02108dcca7b967934230aa6a69abc95fa`. The published `fips-core`
+  0.4.1 crate checksum is
+  `e720d19a0f9b007dad9c03e7e952df8cb79bd0e1a7ab4da1c5cb8c2619cadbe0`;
+  the published `fips-endpoint` 0.4.1 checksum is
+  `7ab3110794075a83a020c61978ea29d990fd68320a43b1b9e388b04abbf202fe`.
+  The seven browser-process passes used the real Rust process and Chromium,
+  sent authenticated FIPS traffic, killed the first browser page, and proved a
+  replacement page could reconnect.
+- The matching TypeScript release is commit
+  `268938c8fe0d35fe4f8fcb3882399291be448897`, tagged `runtime-v0.0.24`:
+  core 0.0.24, browser 0.0.6, WebRTC 0.0.40, Ethernet 0.0.23, and memory
+  0.0.4. All TypeScript unit tests and the unchanged 14-case Playwright suite
+  passed against native commit `5af4f0d02108dcca7b967934230aa6a69abc95fa`;
+  a clean remote-tarball import also passed.
+- `nostr-identity` 0.4.0 was released from the social-graph repository at
+  commit `d8faabd1bf865f4cf95c9d56eddf99de31436862`; its published crate
+  checksum is
+  `95fd048871579a175d1c38d1ea947f1034206d93696ea7ac74d140979e8022bb`.
+- `cashu-service` source commit
+  `b45a7e16744928b2ebae54e42e8f62c1d7eabdcb` is available from both its
+  Hashtree and GitHub remotes. The published `cashu-service` 0.3.1 checksum is
+  `c339af6a3c7a748230e980df1e89c4199532b33222d3c47e0cf148ab4d15498f`;
+  the published `cashu-credit` 0.3.0 checksum is
+  `c35743015747540d9c912284f10ccf89c40ded00c51fd3710c08c60700c71339`.
+  This proves the reusable real-mint foundation, not the still-pending paid
+  Iris product failure/replay/resumption gate.
 
 ## Repository organization
 

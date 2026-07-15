@@ -53,6 +53,11 @@ The substrate matrix above is fast and deterministic, but it is not sufficient
 evidence that a product composes the released pieces correctly. The explicit
 `drive_htree_product` gate starts these real processes:
 
+The checked-in Rust lockfile pins the substrate gate to the published
+`fips-core` 0.4.1, `fips-tcp` 0.2.0, and `hashtree-fips-transport` 0.4.0
+artifacts. Product fixtures and the `htree` executable are supplied as exact
+coordinates at run time.
+
 ```text
 remote htree (released CLI, owns UDP FIPS link)
               ^
