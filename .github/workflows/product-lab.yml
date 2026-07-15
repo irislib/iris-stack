@@ -1,0 +1,41 @@
+name: Released product lab
+
+on:
+  workflow_call:
+    inputs:
+      drive_rev:
+        description: Exact public Iris Drive commit containing the stack fixture
+        required: true
+        type: string
+      htree_version:
+        description: Exact released hashtree-cli version
+        required: false
+        default: 0.2.85
+        type: string
+  workflow_dispatch:
+    inputs:
+      drive_rev:
+        description: Exact public Iris Drive commit containing the stack fixture
+        required: true
+        type: string
+      htree_version:
+        description: Exact released hashtree-cli version
+        required: false
+        default: 0.2.85
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  drive-hashtree:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev }}
+      IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run released product process gate
+        run: scripts/product-lab.sh

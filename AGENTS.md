@@ -6,4 +6,6 @@
   substrate implementation.
 - Do not copy FIPS, TCP/FIPS, or Hashtree framing, retry, or discovery logic here.
 - Tests must use isolated loopback rendezvous ports and ordinary user privileges.
+- Product gates must disable host-LAN discovery and pin public artifacts or exact
+  public commits; local binary paths are runtime inputs only.
 - Preserve separate OS processes for the external peer, rendezvous anchor, provider, and consumer roles.

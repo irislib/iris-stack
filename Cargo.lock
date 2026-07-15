@@ -962,9 +962,9 @@ dependencies = [
 
 [[package]]
 name = "hashtree-fips-transport"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5614e0b7217c9e8050ee57bea3ea8cbd996d8426eaa871513a889858e516f92b"
+checksum = "bb7c0685acbf63fce9f9e84c53abda7cd2d890534964202dde6b9d3e0769abbe"
 dependencies = [
  "async-trait",
  "fips-core",
@@ -974,6 +974,7 @@ dependencies = [
  "sha2",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1211,6 +1212,7 @@ dependencies = [
  "fips-core",
  "hashtree-core",
  "hashtree-fips-transport",
+ "serde_json",
  "tokio",
 ]
 

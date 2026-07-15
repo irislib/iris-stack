@@ -1,13 +1,11 @@
+mod support;
+
 use std::collections::HashSet;
 use std::net::UdpSocket;
-use std::process::Stdio;
-use std::time::Duration;
 
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, Lines};
-use tokio::process::{Child, ChildStdout, Command};
-use tokio::time::timeout;
+use support::process::ManagedProcess;
+use tokio::process::Command;
 
-const WAIT: Duration = Duration::from_secs(30);
 static PROCESS_MATRIX_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[derive(Clone, Copy)]
@@ -17,9 +15,7 @@ enum ProcessExit {
 }
 
 struct Process {
-    child: Child,
-    lines: Lines<BufReader<ChildStdout>>,
-    output: String,
+    inner: ManagedProcess,
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -264,90 +260,41 @@ impl Process {
     }
 
     async fn command_until(&mut self, command: &str, marker: &str) {
-        self.command(command).await;
+        self.inner.send_line(command).await.expect("send command");
         self.line_containing(marker).await;
     }
 
     async fn line_containing(&mut self, marker: &str) -> String {
-        timeout(WAIT, async {
-            loop {
-                let line = self
-                    .lines
-                    .next_line()
-                    .await
-                    .expect("read child stdout")
-                    .expect("child exited before marker");
-                self.output.push_str(&line);
-                self.output.push('\n');
-                if line.contains(marker) {
-                    return line;
-                }
-            }
-        })
-        .await
-        .unwrap_or_else(|_| panic!("timed out waiting for {marker}; output:\n{}", self.output))
-    }
-
-    async fn command(&mut self, command: &str) {
-        let stdin = self.child.stdin.as_mut().expect("child stdin");
-        stdin
-            .write_all(format!("{command}\n").as_bytes())
+        self.inner
+            .line_containing(marker)
             .await
-            .expect("write command");
-        stdin.flush().await.expect("flush command");
+            .unwrap_or_else(|error| panic!("{error:#}"))
     }
 
     async fn stop(&mut self) {
-        self.command("stop").await;
+        self.inner.send_line("stop").await.expect("send stop");
     }
 
     async fn finish(self) -> String {
-        let (output, status) = self.collect().await;
-        assert!(status.success(), "child {status}; output:\n{output}");
-        output
+        self.inner.finish().await.expect("child process").stdout
     }
 
-    async fn kill(mut self) -> String {
-        self.child.kill().await.expect("kill child");
-        let (output, status) = self.collect().await;
-        assert!(!status.success(), "killed child unexpectedly succeeded");
-        output
-    }
-
-    async fn collect(self) -> (String, std::process::ExitStatus) {
-        let mut output = self.output;
-        let mut reader = self.lines.into_inner();
-        let mut child = self.child;
-        let (rest, status) = timeout(WAIT, async move {
-            let mut rest = String::new();
-            reader
-                .read_to_string(&mut rest)
-                .await
-                .expect("read remaining child stdout");
-            let status = child.wait().await.expect("wait for child");
-            (rest, status)
-        })
-        .await
-        .expect("child exit timed out");
-        output.push_str(&rest);
-        (output, status)
+    async fn kill(self) -> String {
+        let output = self.inner.kill().await.expect("kill child");
+        assert!(
+            !output.status.success(),
+            "killed child unexpectedly succeeded"
+        );
+        output.stdout
     }
 }
 
 async fn spawn(args: &[&str]) -> Process {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_iris-stack-lab"))
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .kill_on_drop(true)
-        .spawn()
-        .expect("spawn role process");
-    let stdout = child.stdout.take().expect("child stdout");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_iris-stack-lab"));
+    command.args(args);
     Process {
-        child,
-        lines: BufReader::new(stdout).lines(),
-        output: String::new(),
+        inner: ManagedProcess::spawn(format!("{} role", args[0]), &mut command)
+            .expect("spawn role process"),
     }
 }
 

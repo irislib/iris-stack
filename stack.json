@@ -298,6 +298,7 @@
     ],
     "authentication": "ordinary Noise IK with identity ACLs",
     "capability_exchange": "authenticated FSP only",
+    "capability_discovery_crosses_product_scopes": true,
     "anchor_roles_excluded": [
       "trust root",
       "mandatory daemon",
@@ -324,7 +325,8 @@
       "cross-repository black-box processes",
       "graceful and forced process death",
       "provider replacement",
-      "released-artifact compatibility"
+      "released-artifact compatibility",
+      "product-owned outbound link preservation"
     ]
   },
   "compatibility_policy": {
