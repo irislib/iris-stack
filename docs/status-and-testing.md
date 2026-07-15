@@ -32,10 +32,32 @@ deployed market.
 
 ## Dependency direction
 
-Products and integration adapters depend on capability cores. Nostr identity
-feeds FIPS, pub/sub, and social facts; FIPS carries reliable streams and
-adapter traffic; Hashtree, social policy, and Cashu remain separate cores that
-products combine through thin adapters.
+```mermaid
+flowchart TB
+    Nostr["Nostr identity and signed events"]
+    Fips["FIPS\nauthenticated datagrams"]
+    Tcp["fips-tcp\nreliable streams"]
+    Pubsub["nostr-pubsub\nreal-time events"]
+    Tree["Hashtree\nverified content and HTL routing"]
+    Graph["nostr-social-graph\nfacts and local policy"]
+    Cashu["cashu-service\ncredit and settlement"]
+    Adapters["thin integration adapters"]
+    Products["Chat · Drive · VPN · Git · other apps"]
+    Lab["iris-stack-lab\nblack-box released-product tests"]
+
+    Nostr --> Fips
+    Nostr --> Pubsub
+    Nostr --> Graph
+    Fips --> Tcp
+    Fips --> Adapters
+    Tcp --> Adapters
+    Pubsub --> Adapters
+    Tree --> Adapters
+    Graph --> Adapters
+    Cashu --> Adapters
+    Adapters --> Products
+    Products --> Lab
+```
 
 Optional adapters may join capabilities; they must not invert the arrows. In
 particular, `nostr-pubsub` announces events and content references but is not a
