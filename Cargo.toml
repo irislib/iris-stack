@@ -1,0 +1,16 @@
+[package]
+name = "iris-stack-lab"
+version = "0.1.0"
+edition = "2024"
+license = "0BSD"
+description = "Process-level integration lab for same-host Iris substrate composition"
+homepage = "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-stack"
+repository = "https://github.com/irislib/iris-stack"
+publish = false
+
+[dependencies]
+anyhow = "1"
+fips-core = "0.4.0"
+hashtree-core = "0.2.84"
+hashtree-fips-transport = "0.3.1"
+tokio = { version = "1", features = ["io-util", "io-std", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }

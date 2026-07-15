@@ -1,0 +1,337 @@
+{
+  "manifest_version": 1,
+  "name": "Iris Stack",
+  "purpose": "Permissionless identity, communication, connectivity, storage, social trust, and money for independent participants.",
+  "principles": [
+    "Products remain standalone and own their explicit outbound links.",
+    "Capability cores never depend on product repositories.",
+    "Cross-capability joins live in adapters.",
+    "Compatibility carriers and gateways are not authorities.",
+    "One versioned wire contract has shared fixtures across implementations.",
+    "Shared extraction removes duplicate implementations and fallback forks."
+  ],
+  "components": [
+    {
+      "id": "nostr",
+      "kind": "foundation",
+      "repository": "https://github.com/nostr-protocol/nips",
+      "owns": [
+        "signed events",
+        "portable public-key identity"
+      ]
+    },
+    {
+      "id": "fips",
+      "kind": "capability-core",
+      "repositories": {
+        "rust": "https://github.com/mmalmi/fips",
+        "typescript": "https://github.com/mmalmi/fips-ts"
+      },
+      "owns": [
+        "authenticated public-key-addressed datagrams",
+        "Noise links",
+        "transports",
+        "discovery and routing",
+        "admission",
+        "encrypted capability exchange"
+      ]
+    },
+    {
+      "id": "fips-tcp",
+      "kind": "capability-core",
+      "repository": "https://github.com/mmalmi/fips-tcp",
+      "depends_on": [
+        "fips"
+      ],
+      "owns": [
+        "reliable ordered delivery over FIPS"
+      ]
+    },
+    {
+      "id": "nostr-pubsub",
+      "kind": "capability-core",
+      "repository": "https://github.com/mmalmi/nostr-pubsub",
+      "depends_on": [
+        "nostr"
+      ],
+      "owns": [
+        "event filters",
+        "inventory and want",
+        "deduplication",
+        "real-time event policy"
+      ],
+      "optional_integrations": [
+        "fips",
+        "nostr-social-graph"
+      ]
+    },
+    {
+      "id": "hashtree",
+      "kind": "capability-core",
+      "repository": "https://github.com/mmalmi/hashtree",
+      "owns": [
+        "content hashes",
+        "blobs and trees",
+        "content-addressed B-tree and collection indexes",
+        "web app and release trees",
+        "Hashtree-authenticated application updates",
+        "history and Git data",
+        "verification and caching",
+        "peer selection and HTL routing"
+      ],
+      "optional_integrations": [
+        "fips-tcp",
+        "nostr-pubsub",
+        "cashu-service"
+      ]
+    },
+    {
+      "id": "nostr-social-graph",
+      "kind": "capability-core",
+      "repository": "https://github.com/mmalmi/nostr-social-graph",
+      "depends_on": [
+        "nostr"
+      ],
+      "owns": [
+        "signed fact events",
+        "graph traversal",
+        "contextual naming over public keys and UUID identities",
+        "local trust and reputation policy",
+        "graph-derived inputs for event, peer, and resource prioritization"
+      ],
+      "optional_integrations": [
+        "nostr-pubsub",
+        "fips",
+        "hashtree"
+      ]
+    },
+    {
+      "id": "cashu-service",
+      "kind": "capability-core",
+      "repository": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service",
+      "owns": [
+        "bounded service credit",
+        "Cashu token transfer",
+        "useful-service receipts",
+        "settlement adapters"
+      ],
+      "settlement_foundation": [
+        "Cashu",
+        "Lightning",
+        "Bitcoin"
+      ]
+    },
+    {
+      "id": "nostr-double-ratchet",
+      "kind": "capability-core",
+      "repository": "https://github.com/irislib/nostr-double-ratchet",
+      "depends_on": [
+        "nostr"
+      ],
+      "owns": [
+        "private-message ratchet cryptography"
+      ]
+    },
+    {
+      "id": "iris-kit",
+      "kind": "shared-integration",
+      "repository": "https://github.com/mmalmi/iris-kit",
+      "owns": [
+        "shared web integration and UI packages"
+      ]
+    },
+    {
+      "id": "iris-stack-lab",
+      "kind": "consumer-only-integration-lab",
+      "repositories": {
+        "canonical": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-stack",
+        "github": "https://github.com/irislib/iris-stack"
+      },
+      "depends_on": [
+        "fips",
+        "fips-tcp",
+        "hashtree"
+      ],
+      "owns": [
+        "black-box cross-repository process tests",
+        "forced-death and replacement tests",
+        "released-artifact compatibility gates"
+      ],
+      "must_not_be_dependency_of": [
+        "capability cores",
+        "products"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "id": "iris-drive",
+      "repository": "https://github.com/mmalmi/iris-drive",
+      "intended_capabilities": [
+        "fips",
+        "fips-tcp",
+        "hashtree"
+      ]
+    },
+    {
+      "id": "iris-chat",
+      "repositories": [
+        "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-chat",
+        "https://github.com/irislib/iris-chat-rs"
+      ],
+      "intended_capabilities": [
+        "nostr",
+        "nostr-social-graph",
+        "nostr-pubsub",
+        "nostr-double-ratchet",
+        "fips"
+      ]
+    },
+    {
+      "id": "nostr-vpn",
+      "repository": "https://github.com/mmalmi/nostr-vpn",
+      "intended_capabilities": [
+        "fips",
+        "cashu-service"
+      ]
+    },
+    {
+      "id": "iris-git",
+      "repository": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-git",
+      "intended_capabilities": [
+        "nostr",
+        "fips",
+        "hashtree"
+      ]
+    },
+    {
+      "id": "iris-contacts",
+      "repository": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-contacts",
+      "intended_capabilities": [
+        "nostr",
+        "nostr-social-graph",
+        "hashtree"
+      ]
+    },
+    {
+      "id": "iris-audio",
+      "repository": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-audio",
+      "intended_capabilities": [
+        "hashtree"
+      ]
+    },
+    {
+      "id": "iris-sites",
+      "repository": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites",
+      "intended_capabilities": [
+        "nostr",
+        "hashtree"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "fsp",
+      "owner": "fips",
+      "purpose": "Authenticated encrypted capability exchange and application traffic."
+    },
+    {
+      "id": "fips-tcp",
+      "owner": "fips-tcp",
+      "purpose": "Reliable ordered streams over authenticated FIPS links."
+    },
+    {
+      "id": "nostr.pubsub/1",
+      "owner": "nostr-pubsub",
+      "carrier": "fips adapter",
+      "purpose": "Real-time decentralized Nostr event pub/sub."
+    },
+    {
+      "id": "hashtree.blob/1",
+      "owner": "hashtree",
+      "carrier": "fips-tcp adapter",
+      "request": {
+        "type": "BlobRequest",
+        "fields": [
+          "hash",
+          "htl"
+        ]
+      },
+      "reply_variants": [
+        "Data(bytes)",
+        "NoResult"
+      ],
+      "semantics": [
+        "NoResult is route-local and is never global absence.",
+        "All returned bytes are hash-verified centrally.",
+        "Only Hashtree mesh forwarding decrements HTL.",
+        "Terminal adapters and FIPS routing hops do not decrement HTL.",
+        "Failure of a same-host route does not suppress standalone lookup.",
+        "Nostr pub/sub is not part of blob routing."
+      ]
+    },
+    {
+      "id": "signed-fact-events",
+      "owner": "nostr-social-graph",
+      "carrier": "nostr",
+      "purpose": "Portable signed claims interpreted by local graph and reputation policy."
+    },
+    {
+      "id": "hashtree.update.v1",
+      "owner": "hashtree",
+      "carriers": [
+        "nostr-pubsub announcement",
+        "Hashtree blob routes"
+      ],
+      "purpose": "Resolve a signed release root, select a platform artifact, and verify its manifest and bytes transitively by CID."
+    }
+  ],
+  "same_host": {
+    "transport": "ordinary FIPS UDP",
+    "rendezvous": "127.0.0.1:21211",
+    "bind": "exclusive",
+    "plaintext_hint": [
+      "version",
+      "random nonce",
+      "same nonce in response",
+      "owner public key"
+    ],
+    "authentication": "ordinary Noise IK with identity ACLs",
+    "capability_exchange": "authenticated FSP only",
+    "anchor_roles_excluded": [
+      "trust root",
+      "mandatory daemon",
+      "external gateway",
+      "shared-egress owner"
+    ],
+    "standalone_required": true
+  },
+  "testing_ownership": {
+    "capability_repositories": [
+      "protocol invariants",
+      "codecs and fuzzing",
+      "resource and failure bounds",
+      "cross-language interoperability"
+    ],
+    "product_repositories": [
+      "startup and platform integration",
+      "authorization and durable effects",
+      "product economics",
+      "application-owned outbound links",
+      "standalone mode"
+    ],
+    "iris-stack-lab": [
+      "cross-repository black-box processes",
+      "graceful and forced process death",
+      "provider replacement",
+      "released-artifact compatibility"
+    ]
+  },
+  "compatibility_policy": {
+    "wire_contracts_versioned": true,
+    "shared_cross_language_fixtures": true,
+    "consumer_lockfile_gate_for_releases": true,
+    "simulators_use_production_state_machines": true,
+    "unreleased_version_tuple_recorded_here": false
+  }
+}
