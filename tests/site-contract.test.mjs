@@ -188,10 +188,10 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.doesNotMatch(guide, /lower-level links|physical layer/);
   assert.match(guide, /same public-key type and format as a Nostr public key/);
   assert.match(guide, /\[`nostr-pubsub`\]\(https:\/\/git\.iris\.to\//);
-  assert.match(guide, /Peers can exchange and forward ordinary subscriptions and events\s+directly/);
-  assert.match(guide, /Signatures decentralize\s+authorship, but peer-to-peer pub\/sub is what also decentralizes live delivery/);
-  assert.match(guide, /incoming\s+event is admitted to local storage and fanout/);
-  assert.match(guide, /peer or relay sources\s+are preferred, throttled, or dropped/);
+  assert.match(guide, /Peers can exchange and forward subscriptions and events directly/);
+  assert.match(guide, /Signatures decentralize\s+authorship, but peer-to-peer\s+pub\/sub is what also decentralizes live delivery/);
+  assert.match(guide, /admit\s+incoming events to local storage and fanout/);
+  assert.match(guide, /prefer, throttle, or drop\s+peer and relay sources/);
   assert.match(guide, /Iris Chat.*Uses peer-to-peer pub\/sub for live message subscriptions/s);
   assert.match(guide, /Discovery adverts are candidates, not authority/);
   assert.match(guide, /existing authenticated FIPS peer is one bootstrap route, not a registry/);
@@ -199,7 +199,7 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /Social graph as local policy/);
   assert.match(guide, /nostr-pubsub-social-graph/);
   assert.match(guide, /machine-generated peer ratings/);
-  assert.match(guide, /Hashtree node can serve or\s+fetch.*FIPS host can reserve/s);
+  assert.match(guide, /Hashtree can prioritize socially\s+close or reputable peers, while FIPS can reserve connection slots or bandwidth/);
   assert.match(guide, /no global trust score/);
   assert.match(guide, /Zooko's original naming essay/);
   assert.match(guide, /Introduction to Petname Systems/);
@@ -213,7 +213,7 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.doesNotMatch(guide, /Identity plane|Payment plane|Settlement plane/);
   assert.match(guide, /Nostr VPN.*Lets an exit node charge for forwarded traffic/s);
   assert.match(guide, /public exit-node marketplace/);
-  assert.match(guide, /The broader app catalog is \[apps\.iris\.to\]\(https:\/\/apps\.iris\.to\//);
+  assert.match(guide, /More apps are listed at \[apps\.iris\.to\]\(https:\/\/apps\.iris\.to\//);
   assert.doesNotMatch(guide, /sites\.iris\.to/);
   assert.doesNotMatch(guide, /status-and-testing|implementation status|available today|remains to be integrated|as of \d{4}-\d{2}-\d{2}/i);
   assert.doesNotMatch(guide, /These comparisons are orientation|Composition map|Open boundaries|Process composition|Same-host application topology/);

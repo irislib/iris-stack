@@ -49,19 +49,18 @@ an event to its author; each application decides what that author may do.
 Fact events give application data a reusable subject–predicate–object shape. A
 durable subject can represent a person, organization, place, review, or other
 entity; predicates such as `name`, `controls`, `same_as`, or `member_of`
-describe it; and objects supply names, keys, or related entities. Apps can then
+describe it; and objects supply names, keys, or related entities. Apps can
 update or dispute claims and assemble their own trusted view without defining a
 new event type for every data model. The signature proves who made a claim, not
 that the claim is universally true.
 
 The [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
-identity tools add UUID-based rosters and facts for identities that span several
-keys or devices. They support key changes without changing every reference to
-the identity.
+identity tools add UUID-based rosters and facts that preserve an identity across
+keys and devices.
 
 | Example app | Usage |
 | --- | --- |
-| [Iris Chat](https://chat.iris.to/) | Uses Nostr identities plus owner-signed AppKeys roster fact snapshots to authorize and synchronize linked devices. |
+| [Iris Chat](https://chat.iris.to/) | Uses Nostr identities and owner-signed AppKeys roster fact snapshots to authorize and synchronize linked devices. |
 | [Iris Contacts](https://contacts.iris.to/) | Keeps one UUID subject for a contact while `name`, `controls`, and other signed facts describe names, keys, and relationships that may change. |
 
 ## 3. Connectivity
@@ -76,8 +75,8 @@ over Ethernet, Bluetooth LE, UDP, TCP, Tor, WebRTC, a relay, or another medium.
 Several carriers can participate in
 one routed mesh; none is required to be IP-based.
 
-Its identity is the same public-key type and format as a Nostr public key, so
-one key can identify both a FIPS node and the author of Nostr events.
+FIPS uses the same public-key type and format as a Nostr public key, so one key
+can identify both a node and an event author.
 
 Applications address a FIPS identity while the node handles peer discovery,
 path selection, forwarding, admission, and link health. An IPv6 adapter lets
@@ -107,20 +106,17 @@ carries ordinary Nostr subscriptions and signed events across local indexes,
 FIPS peers, mesh peers, and optional relays. An application subscribes once and
 applies local policy when choosing sources or accepting events.
 
-`nostr-pubsub` keeps Nostr's signed events and subscription model without
-requiring communication to be organized around clients connecting to relay
-servers. Peers can exchange and forward ordinary subscriptions and events
-directly, while standard Nostr relays remain compatible optional routes. A peer
-only needs a path to another peer; it does not need to expose a public server,
-register a domain, or obtain a TLS certificate. Signatures decentralize
-authorship, but peer-to-peer pub/sub is what also decentralizes live delivery.
+The protocol preserves that model without organizing communication around relay
+servers. Peers can exchange and forward subscriptions and events directly,
+while standard Nostr relays remain optional routes. A peer only needs a path to
+another peer; it does not need to expose a public server, register a domain, or
+obtain a TLS certificate. Signatures decentralize authorship, but peer-to-peer
+pub/sub is what also decentralizes live delivery.
 
 The [`nostr-pubsub-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub/crates/nostr-pubsub-social-graph)
-adapter applies `nostr-social-graph` to this flow. An app can use follows,
-mutes, graph distance, and signed service ratings to decide whether an incoming
-event is admitted to local storage and fanout, and which peer or relay sources
-are preferred, throttled, or dropped. These remain viewer-local policy choices,
-not network-wide bans.
+adapter uses follows, mutes, graph distance, and signed service ratings to admit
+incoming events to local storage and fanout and to prefer, throttle, or drop
+peer and relay sources. These are viewer-local choices, not network-wide bans.
 
 The same event plane carries social posts and stack coordination events:
 peer adverts, machine ratings, Hashtree roots, app updates, repository
@@ -135,15 +131,14 @@ Bluetooth LE, UDP, WebRTC, or another carrier. Capability adverts say what a
 FIPS identity offers—such as Hashtree or `nostr-pubsub`—and identify the
 interface to use.
 
-A client still authenticates the remote identity through FIPS, checks the exact
+The client authenticates the remote identity through FIPS, checks the exact
 capability, and applies its own author, social, and resource policy before using
 the peer. Seeing an advert alone grants no access or trust.
 
 An existing authenticated FIPS peer is one bootstrap route, not a registry.
-Through `nostr-pubsub-fips`, an application can send an ordinary subscription
-over that connection and receive or forward the same adverts. Relays, local
-indexes, and other pub/sub peers can answer the same query; no source is
-required for discovery to work.
+Through `nostr-pubsub-fips`, ordinary subscriptions and signed adverts travel
+over that connection. Relays, local indexes, and other pub/sub peers can answer
+the same query; no source is mandatory.
 
 | Example app | Usage |
 | --- | --- |
@@ -194,26 +189,20 @@ A static web app can be published as a Hashtree directory. Its `nhash`
 identifies one immutable version; a signed `npub/tree` name can advance to a
 new version without invalidating the old one.
 
-A local app runtime can serve executable sites from separate browser origins such as
-`sitename.npub.iris.localhost` or `<nhash>.iris.localhost`. The separation keeps
+A local app runtime can serve executable sites from separate browser origins
+such as `sitename.npub.iris.localhost` or `<nhash>.iris.localhost`, keeping
 unrelated apps from sharing cookies, storage, or service workers. Application
 sandboxing remains a separate concern.
-
-Catalogs can aid discovery, while signed roots identify publisher versions and
-Hashtree hashes verify the app bytes.
 
 `hashtree-updater` applies the same model to native releases. A signed root
 arrives through `nostr-pubsub`; the app checks the publisher, fetches the
 release through its Hashtree routes, verifies the content address, and installs
-the matching artifact.
-
-Runtime updates can receive both notice and bytes from stack-native peers, with
-relay, Blossom, and HTTPS compatibility routes available.
-[`hashtree-updater` source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/hashtree-updater).
+the matching artifact. Notices and artifacts can come from stack-native peers,
+with relay, Blossom, and HTTPS compatibility routes available.
 
 | Example app | Usage |
 | --- | --- |
-| [Iris Drive](https://getdrive.iris.to/) | Finds the same verified file in a local cache, nearby peer, or remote provider, and serves Hashtree apps from isolated local origins. |
+| [Iris Drive](https://getdrive.iris.to/) | Fetches verified files from a local cache, nearby peer, or remote provider, and serves Hashtree apps from isolated local origins. |
 | [Iris Audio](https://audio.iris.to/) | Queries shared song, artist, and album collection/search roots directly from the browser. |
 | [Iris Sites](https://apps.iris.to/) | Catalogs and launches web apps whose signed roots identify versions and whose Hashtree hashes verify the bytes. |
 
@@ -243,10 +232,9 @@ order candidate peers during discovery.
 uses the graph for crawl scope, relay and storage access, mirror selection, and
 profile search.
 
-These signals can feed resource schedulers. A Hashtree node can serve or
-fetch for socially close or reputable peers first; a FIPS host can reserve
-connection slots or bandwidth for them. Each node controls this scheduling and
-can reserve capacity for unfamiliar peers.
+These signals can guide resource scheduling: Hashtree can prioritize socially
+close or reputable peers, while FIPS can reserve connection slots or bandwidth.
+Each node controls its schedule and can reserve capacity for unfamiliar peers.
 
 ### 6.2 Human names without a global namespace
 
@@ -261,10 +249,9 @@ signed search problem:
 - Search returns candidates. Viewer-local follows, social distance, explicit
   trust, and application policy rank them.
 
-Names are signed, non-exclusive claims. The same string can identify several
-candidates, and publishing it first grants no exclusive claim. Each viewer
-resolves it through accepted authors, social context, and private petnames while
-the key or UUID remains stable.
+Names are signed claims, not registrations. The same string can identify
+several candidates. Each viewer resolves it through accepted authors, social
+context, and private petnames while the key or UUID remains stable.
 
 This follows the petname approach described in
 [Zooko's original naming essay](https://www.cs.princeton.edu/courses/archive/spr17/cos518/papers/zooko-triangle.pdf)
@@ -290,19 +277,17 @@ with sat-denominated useful-service receipts and bounded peer credit. A node can
 accept a peer's credit up to a local limit, then request settlement through an
 accepted Cashu mint, Lightning, or another configured method.
 
-Products choose pricing, credit limits, and accepted settlement methods. The
-same adapters can account for connectivity, bandwidth, storage, routing, or
-other services, while free and reciprocal routes remain available.
+Products choose pricing, credit limits, and settlement methods. The same
+adapters can meter connectivity, bandwidth, storage, or routing, while free and
+reciprocal routes remain available.
 
 | Example app | Usage |
 | --- | --- |
 | [Nostr VPN](https://nostrvpn.org/) | Lets an exit node charge for forwarded traffic and settle the balance with Cashu. |
-| [Iris Drive](https://getdrive.iris.to/) | Can use the same credit-and-receipt model for paid storage or blob delivery. |
 
 ## 8. Products
 
-The broader app catalog is [apps.iris.to](https://apps.iris.to/); it lists many
-apps beyond the examples below.
+More apps are listed at [apps.iris.to](https://apps.iris.to/).
 
 | Product | Function | Links |
 | --- | --- | --- |
