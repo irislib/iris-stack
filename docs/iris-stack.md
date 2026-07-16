@@ -85,8 +85,24 @@ carries ordinary Nostr subscriptions and signed events across local indexes,
 FIPS peers, mesh peers, and optional relays. An application subscribes once and
 applies local policy when choosing sources or accepting events.
 
-The same event plane carries social posts and stack coordination events:
-peer adverts, machine ratings, Hashtree roots, app updates, repository
+`nostr-pubsub` was created to keep Nostr's signed events and subscription model
+without requiring communication to be organized around clients connecting to
+relay servers. It remains compatible with ordinary Nostr relays while also
+providing decentralized peer-to-peer pub/sub. Peers exchange and forward
+subscriptions and signed events with one another, reducing dependence on a few
+large, hardcoded relays. A peer needs a connection to another peer; it does not
+need to expose a server on a public IP address, register a domain name, or
+obtain a TLS certificate. This peer-to-peer mode is essential to the stack:
+without it, signed Nostr communication would still depend operationally on
+relay servers.
+
+`nostr-pubsub` also provides a shared discovery and coordination plane. It
+distributes FIPS peer adverts and signed peer ratings, along with Hashtree
+mutable `npub/path` root announcements and updates. FIPS and Hashtree can still
+operate with manually configured peers or roots—just as IP can operate without
+DHCP—but they lose automatic decentralized discovery and updates.
+
+The same event plane also carries social posts, app updates, repository
 announcements, and service offers. Events announce large content by hash;
 Hashtree routes carry the bytes.
 
