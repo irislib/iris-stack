@@ -61,7 +61,7 @@ the identity.
 
 | Example app | Usage |
 | --- | --- |
-| [Iris Chat](https://chat.iris.to/) | Uses Nostr identities plus owner-signed AppKeys roster fact snapshots to authorize and synchronize linked devices; encrypted message envelopes remain signed events. |
+| [Iris Chat](https://chat.iris.to/) | Uses Nostr identities plus owner-signed AppKeys roster fact snapshots to authorize and synchronize linked devices. |
 | [Iris Contacts](https://contacts.iris.to/) | Keeps one UUID subject for a contact while `name`, `controls`, and other signed facts describe names, keys, and relationships that may change. |
 
 ## 3. Connectivity
