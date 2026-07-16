@@ -24,17 +24,17 @@ applications. Nostr identity and payments cross every layer.
 
 | Position | Component | Role | Replaces |
 | --- | --- | --- | --- |
-| [Identity plane](#nostr-identity-and-signed-events) | Nostr | Portable public-key identity and signed event format | Platform account, email address, phone number, domain name, or TLS certificate as identity |
+| [Identity](#nostr-identity-and-signed-events) | Nostr | Portable public-key identity and signed event format | Platform account, email address, phone number, domain name, or TLS certificate as identity |
 | [1 · datagrams](#fips-authenticated-datagrams) | FIPS | Authenticated datagrams addressed by self-generated public keys, encrypted links, carrier adapters, discovery, routing, and admission | Hierarchically allocated or location-dependent addressing (domain names and IP addresses), plus transport-specific authentication and routing |
 | [2 · streams](#reliable-streams-with-fips-tcp) | `fips-tcp` | Reliable ordered delivery over FIPS | TCP streams bound to IP endpoints |
 | [3a · publish-subscribe](#nostr-pubsub-publish-subscribe) | `nostr-pubsub` | Subscriptions, signed-event exchange, deduplication, source selection, and real-time policy | Central message broker |
 | [3b · content](#hashtree-blobs-and-routes) | Hashtree | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
 | [4a · indexes](#hashtree-indexes-for-large-datasets) | `@hashtree/index` and `@hashtree/collection` | Immutable B-trees, canonical records, derived search roots, collection manifests, and local or federated reads | Central database, search service, or relay index |
 | [4b · social context](#social-graph-as-local-policy) | `nostr-social-graph` | Graph traversal, fact events, viewer-local naming, moderation, reputation, and resource-policy inputs | Central profile, ACL, moderation, or reputation database |
-| [Payment plane](#payments) | `cashu-service` | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
+| [Payments](#payments) | `cashu-service` | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
 | [5 · applications](#products) | Products | User experience, authorization, durable state, economics, and explicit outbound peers | Single platform as identity, policy, and egress authority |
 
-## 2. Identity plane
+## 2. Identity
 
 ### 2.1 Nostr identity and signed events
 

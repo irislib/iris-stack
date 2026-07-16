@@ -15,6 +15,7 @@ test('renders the public architecture Markdown', async ({ page }) => {
   await expect(page.getByRole('banner')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Table of contents' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '1. Capability layers' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '2. Identity' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '2.1 Nostr identity and signed events' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '2.2 Signed fact events' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '4.1 nostr-pubsub publish-subscribe' })).toBeVisible();

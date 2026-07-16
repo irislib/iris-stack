@@ -79,7 +79,7 @@ test('the capability table navigates within the guide', () => {
 
 test('the guide body follows the capability order', () => {
   const orderedHeadings = [
-    '## 2. Identity plane',
+    '## 2. Identity',
     '## 3. Connectivity',
     '## 4. Publish-subscribe and discovery',
     '## 5. Verifiable content and indexes',
@@ -207,6 +207,7 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /\[Cashu\]\(https:\/\/cashu\.space\/\) token transfer/);
   assert.match(guide, /^## 7\. Payments$/m);
   assert.doesNotMatch(guide, /^## 7\. (?:Settlement|Cashu service layer)$|^### 7\.1 /m);
+  assert.doesNotMatch(guide, /Identity plane|Payment plane|Settlement plane/);
   assert.match(guide, /Nostr VPN exit node can charge for forwarded traffic/);
   assert.match(guide, /public exit-node marketplace/);
   assert.match(guide, /The broader app catalog is \[apps\.iris\.to\]\(https:\/\/apps\.iris\.to\//);
