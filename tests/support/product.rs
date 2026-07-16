@@ -6,6 +6,7 @@ use anyhow::{Context, Result, ensure};
 use hashtree_core::{Cid, NHashData, nhash_encode_full, sha256, to_hex};
 use serde_json::Value;
 use tokio::process::Command;
+use tokio::time::{Duration, timeout};
 
 use crate::support::process::ManagedProcess;
 pub use crate::support::process::TestRoot;
@@ -258,6 +259,32 @@ pub fn spawn_htree(
     let mut command = node.command(htree_bin);
     command.arg("start").arg("--addr").arg(http_addr);
     ManagedProcess::spawn(label, &mut command)
+}
+
+pub async fn wait_for_htree_fips_peer(http_addr: &str, npub: &str) -> Result<()> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(700))
+        .build()?;
+    let status_url = format!("http://{http_addr}/api/status");
+    timeout(Duration::from_secs(30), async {
+        loop {
+            if let Ok(response) = client.get(&status_url).send().await
+                && let Ok(status) = response.json::<Value>().await
+                && status["fips"]["peer_statuses"]
+                    .as_array()
+                    .is_some_and(|peers| {
+                        peers.iter().any(|peer| {
+                            peer["npub"] == npub && peer["connected"].as_bool() == Some(true)
+                        })
+                    })
+            {
+                return Ok::<_, anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .with_context(|| format!("htree at {http_addr} did not connect to {npub}"))?
 }
 
 pub fn payload(label: &str, len: usize) -> Vec<u8> {

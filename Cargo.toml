@@ -12,9 +12,12 @@ publish = false
 anyhow = "1"
 cashu-credit = "=0.3.0"
 cashu-service = { version = "=0.3.1", features = ["simulation"] }
-fips-core = "=0.4.1"
+# FINAL_FIPS_PIN: replace this verified baseline with the direct-FSP patch
+# release and exact checksum before publishing the Stack snapshot.
+fips-core = "=0.4.4"
 hashtree-core = "0.2.84"
-hashtree-fips-transport = "=0.4.1"
+hashtree-fips-transport = "=0.4.3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["io-util", "io-std", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }

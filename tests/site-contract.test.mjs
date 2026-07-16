@@ -10,6 +10,8 @@ const icon = readFileSync(resolve(root, 'site/public/favicon.svg'), 'utf8');
 const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
 const guide = readFileSync(resolve(root, 'docs/iris-stack.md'), 'utf8');
 const stack = JSON.parse(readFileSync(resolve(root, 'stack.json'), 'utf8'));
+const nativeWorkflow = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8');
+const productWorkflow = readFileSync(resolve(root, '.github/workflows/product-lab.yml'), 'utf8');
 const vpnLab = readFileSync(resolve(root, 'scripts/vpn-product-lab.sh'), 'utf8');
 const vpnWorkflow = readFileSync(resolve(root, '.github/workflows/vpn-product-lab.yml'), 'utf8');
 
@@ -87,8 +89,8 @@ test('the machine-readable stack keeps the capabilities used by the visual map',
   }
 });
 
-test('the VPN product gate delegates to one pinned, manually invoked owner harness', () => {
-  const revision = 'bb9de1977d732757bc90315aea24f8fbfce2765e';
+test('the VPN product gate delegates to one pinned owner harness on bounded triggers', () => {
+  const revision = 'd790b6db6bfaa67718be47e322426c355b76f3ba';
 
   assert(vpnLab.includes(revision));
   assert(vpnWorkflow.includes(revision));
@@ -98,5 +100,16 @@ test('the VPN product gate delegates to one pinned, manually invoked owner harne
   assert.doesNotMatch(vpnLab, /\bnvpn\s+(?:set|connect|pubsub)\b/);
   assert.match(vpnWorkflow, /^  workflow_call:/m);
   assert.match(vpnWorkflow, /^  workflow_dispatch:/m);
-  assert.doesNotMatch(vpnWorkflow, /^  (?:push|pull_request):/m);
+  assert.match(vpnWorkflow, /^  push:\n    paths:/m);
+  assert.match(vpnWorkflow, /^  pull_request:\n    paths:/m);
+});
+
+test('push and pull-request CI covers native and released-product composition', () => {
+  assert.match(nativeWorkflow, /^  push:/m);
+  assert.match(nativeWorkflow, /^  pull_request:/m);
+  assert.match(nativeWorkflow, /cargo test --locked --all-targets/);
+  assert.match(productWorkflow, /^  push:\n    paths:/m);
+  assert.match(productWorkflow, /^  pull_request:\n    paths:/m);
+  assert.match(productWorkflow, /^  chat-drive-hashtree:\n    runs-on:/m);
+  assert.doesNotMatch(productWorkflow, /github\.event_name.*workflow_(?:call|dispatch)/);
 });

@@ -6,16 +6,20 @@ on:
       - .github/workflows/product-lab.yml
       - Cargo.lock
       - Cargo.toml
+      - scripts/product-lab.sh
       - src/bin/cashu-stack-fixture.rs
       - tests/cashu_payment_product.rs
+      - tests/chat_drive_htree_product.rs
       - tests/support/**
   pull_request:
     paths:
       - .github/workflows/product-lab.yml
       - Cargo.lock
       - Cargo.toml
+      - scripts/product-lab.sh
       - src/bin/cashu-stack-fixture.rs
       - tests/cashu_payment_product.rs
+      - tests/chat_drive_htree_product.rs
       - tests/support/**
   workflow_call:
     inputs:
@@ -26,7 +30,12 @@ on:
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.85
+        default: 0.2.88
+        type: string
+      chat_version:
+        description: Exact released iris-chat crate version
+        required: false
+        default: 0.1.39
         type: string
   workflow_dispatch:
     inputs:
@@ -37,7 +46,12 @@ on:
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.85
+        default: 0.2.88
+        type: string
+      chat_version:
+        description: Exact released iris-chat crate version
+        required: false
+        default: 0.1.39
         type: string
 
 permissions:
@@ -57,13 +71,13 @@ jobs:
       - name: Run real Cashu failure and recovery gate
         run: cargo test --locked --test cashu_payment_product -- --nocapture
 
-  drive-hashtree:
-    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
+  chat-drive-hashtree:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev }}
-      IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version }}
+      IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev || '' }}
+      IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version || '0.2.88' }}
+      IRIS_STACK_CHAT_VERSION: ${{ inputs.chat_version || '0.1.39' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

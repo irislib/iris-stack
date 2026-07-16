@@ -3,6 +3,8 @@ set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 install_root=${IRIS_STACK_PRODUCT_INSTALL_ROOT:-"$repo_dir/target/product-lab"}
+# FINAL_DRIVE_PIN: this is the single coordinate to replace after the native
+# lifecycle lane has merged and passed its owner-repository release gate.
 drive_rev=${IRIS_STACK_DRIVE_REV:-142ea1e83b5251d1fbdf6e9a0ce44126892d2fbc}
 mkdir -p "$install_root"
 
@@ -12,7 +14,7 @@ if [ -n "${IRIS_STACK_HTREE_BIN:-}" ]; then
     exit 1
   }
 else
-  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.85}
+  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.88}
   cargo install \
     --locked \
     --root "$install_root" \
@@ -39,6 +41,23 @@ else
   IRIS_STACK_DRIVE_FIXTURE_BIN=$install_root/bin/iris-drive-stack-fixture
 fi
 
-export IRIS_STACK_HTREE_BIN IRIS_STACK_DRIVE_FIXTURE_BIN
+if [ -n "${IRIS_STACK_CHAT_FIXTURE_BIN:-}" ]; then
+  test -x "$IRIS_STACK_CHAT_FIXTURE_BIN" || {
+    echo "IRIS_STACK_CHAT_FIXTURE_BIN is not executable: $IRIS_STACK_CHAT_FIXTURE_BIN" >&2
+    exit 1
+  }
+else
+  chat_version=${IRIS_STACK_CHAT_VERSION:-0.1.39}
+  cargo install \
+    --locked \
+    --root "$install_root" \
+    --version "=$chat_version" \
+    --features stack-fixture \
+    --bin iris-chat-stack-fixture \
+    iris-chat
+  IRIS_STACK_CHAT_FIXTURE_BIN=$install_root/bin/iris-chat-stack-fixture
+fi
+
+export IRIS_STACK_HTREE_BIN IRIS_STACK_DRIVE_FIXTURE_BIN IRIS_STACK_CHAT_FIXTURE_BIN
 cd "$repo_dir"
-cargo test --locked --test drive_htree_product -- --ignored --nocapture
+cargo test --locked --test chat_drive_htree_product -- --ignored --nocapture

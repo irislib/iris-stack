@@ -1418,9 +1418,9 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "fips-core"
-version = "0.4.1"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e720d19a0f9b007dad9c03e7e952df8cb79bd0e1a7ab4da1c5cb8c2619cadbe0"
+checksum = "50dbe1eb7c3775c3bf6e01f6bd0e9f414bfe9132a3cdf5a8d199bb3eeb0c79a8"
 dependencies = [
  "base64 0.22.1",
  "bluer",
@@ -1807,9 +1807,9 @@ dependencies = [
 
 [[package]]
 name = "hashtree-fips-transport"
-version = "0.4.1"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8a5920c11eadd389fb0e0a30396c596468c269fb88aa6eb3025490a8d03b564"
+checksum = "35cf1e88e5e2d7c9972799dd706eb315110f9da376f4dc3f1a8796d5988d6c9c"
 dependencies = [
  "async-trait",
  "fips-core",
@@ -2215,6 +2215,7 @@ dependencies = [
  "fips-core",
  "hashtree-core",
  "hashtree-fips-transport",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",

@@ -5,10 +5,11 @@ mod support;
 use std::time::Duration;
 
 use anyhow::{Context, Result, ensure};
+use hashtree_core::BLOB_DEFAULT_HTL;
 use product::{
     HtreeNode, NodeConfig, TestRoot, add_blob, cat_blob, drive_identity, htree_identity,
     nhash_for_cid, payload, payload_sha256, required_binary, reserve_tcp_address,
-    reserve_udp_address, spawn_htree, write_hashtree_read_config,
+    reserve_udp_address, spawn_htree, wait_for_htree_fips_peer, write_hashtree_read_config,
 };
 use serde_json::Value;
 use support::process::ManagedProcess;
@@ -30,13 +31,17 @@ async fn run_product_scenario() -> Result<()> {
     let chat_bin = required_binary("IRIS_STACK_CHAT_FIXTURE_BIN")?;
     let root = TestRoot::new()?;
     let remote = HtreeNode::new(root.path(), "remote");
+    let mesh_remote = HtreeNode::new(root.path(), "mesh-remote");
     let provider = HtreeNode::new(root.path(), "provider");
     let remote_rendezvous = reserve_udp_address()?;
+    let mesh_rendezvous = reserve_udp_address()?;
     let local_rendezvous = reserve_udp_address()?;
     let remote_udp = reserve_udp_address()?;
+    let mesh_remote_udp = reserve_udp_address()?;
     let provider_udp = reserve_udp_address()?;
     let drive_udp = reserve_udp_address()?;
     let remote_http = reserve_tcp_address()?;
+    let mesh_remote_http = reserve_tcp_address()?;
     let provider_http = reserve_tcp_address()?;
     let chat_config = root.path().join("chat-hashtree-config");
     let chat_data = root.path().join("chat-data");
@@ -48,13 +53,26 @@ async fn run_product_scenario() -> Result<()> {
         peers: &[],
     })?;
     let remote_npub = htree_identity(&htree_bin, &remote).await?;
+    mesh_remote.write_config(NodeConfig {
+        http_addr: &mesh_remote_http,
+        udp_addr: &mesh_remote_udp,
+        rendezvous_addr: &mesh_rendezvous,
+        peers: &[],
+    })?;
+    let mesh_remote_npub = htree_identity(&htree_bin, &mesh_remote).await?;
     provider.write_config(NodeConfig {
         http_addr: &provider_http,
         udp_addr: &provider_udp,
         rendezvous_addr: &local_rendezvous,
-        peers: &[],
+        peers: &[(&mesh_remote_npub, &mesh_remote_udp)],
     })?;
     let provider_npub = htree_identity(&htree_bin, &provider).await?;
+    mesh_remote.write_config(NodeConfig {
+        http_addr: &mesh_remote_http,
+        udp_addr: &mesh_remote_udp,
+        rendezvous_addr: &mesh_rendezvous,
+        peers: &[(&provider_npub, &provider_udp)],
+    })?;
     let drive_key = root.path().join("drive-app-key");
     let drive_identity = drive_identity(&drive_bin, &drive_key).await?;
     remote.write_config(NodeConfig {
@@ -65,9 +83,11 @@ async fn run_product_scenario() -> Result<()> {
     })?;
 
     let provider_bytes = payload("shared-provider", 192 * 1024 + 17);
+    let mesh_bytes = payload("provider-routed-htl", 192 * 1024 + 23);
     let standalone_bytes = payload("standalone-after-miss", 192 * 1024 + 31);
     let after_death_bytes = payload("standalone-after-death", 192 * 1024 + 47);
     let provider_cid = add_blob(&htree_bin, &provider, "provider.bin", &provider_bytes).await?;
+    let mesh_cid = add_blob(&htree_bin, &mesh_remote, "mesh.bin", &mesh_bytes).await?;
     let standalone_cid = add_blob(&htree_bin, &remote, "standalone.bin", &standalone_bytes).await?;
     let after_death_cid =
         add_blob(&htree_bin, &remote, "after-death.bin", &after_death_bytes).await?;
@@ -77,9 +97,17 @@ async fn run_product_scenario() -> Result<()> {
 
     let mut remote_process = spawn_htree(&htree_bin, &remote, &remote_http, "remote htree")?;
     remote_process.line_containing("FIPS: enabled").await?;
+    let mut mesh_remote_process = spawn_htree(
+        &htree_bin,
+        &mesh_remote,
+        &mesh_remote_http,
+        "mesh-only remote htree",
+    )?;
+    mesh_remote_process.line_containing("FIPS: enabled").await?;
     let mut provider_process =
         spawn_htree(&htree_bin, &provider, &provider_http, "provider htree")?;
     provider_process.line_containing("FIPS: enabled").await?;
+    wait_for_htree_fips_peer(&provider_http, &mesh_remote_npub).await?;
 
     write_hashtree_read_config(&chat_config, &format!("http://{remote_http}"))?;
     let mut chat_command = Command::new(&chat_bin);
@@ -137,6 +165,21 @@ async fn run_product_scenario() -> Result<()> {
     let drive_provider = fetch_drive(&mut drive, &provider_cid).await?;
     assert_drive_fetch(&drive_provider, &provider_cid, &remote_udp)?;
 
+    ensure!(
+        BLOB_DEFAULT_HTL == 10 && BLOB_DEFAULT_HTL.saturating_sub(1) == 9,
+        "released Hashtree default HTL no longer exposes the expected one-hop budget"
+    );
+    let drive_mesh = fetch_drive(&mut drive, &mesh_cid).await?;
+    assert_drive_fetch(&drive_mesh, &mesh_cid, &remote_udp)?;
+    ensure!(
+        cat_blob(&htree_bin, &provider, &mesh_cid).await? == mesh_bytes,
+        "the same-host provider did not cache its one-hop Hashtree result"
+    );
+    ensure!(
+        cat_blob(&htree_bin, &remote, &mesh_cid).await.is_err(),
+        "the Drive-owned standalone route unexpectedly contained the HTL-only blob"
+    );
+
     let chat_standalone = fetch_chat(&mut chat, &standalone_nhash).await?;
     assert_chat_fetch(&chat_standalone, &standalone_nhash, &standalone_bytes)?;
     let drive_standalone = fetch_drive(&mut drive, &standalone_cid).await?;
@@ -145,7 +188,7 @@ async fn run_product_scenario() -> Result<()> {
         cat_blob(&htree_bin, &provider, &standalone_cid)
             .await
             .is_err(),
-        "same-host HTL=0 miss incorrectly routed through the provider mesh"
+        "the same-host provider cached a blob that only its standalone route supplied"
     );
 
     let provider_exit = provider_process.kill().await?;
@@ -194,9 +237,15 @@ async fn run_product_scenario() -> Result<()> {
         "forced remote exit succeeded"
     );
     assert_no_lan_discovery(&remote_exit.stdout, &remote_exit.stderr)?;
+    let mesh_remote_exit = mesh_remote_process.kill().await?;
+    ensure!(
+        !mesh_remote_exit.status.success(),
+        "forced mesh-only remote exit succeeded"
+    );
+    assert_no_lan_discovery(&mesh_remote_exit.stdout, &mesh_remote_exit.stderr)?;
     eprintln!(
-        "product lab passed: Chat {}, Drive {}, shared htree {}, remote htree {}",
-        chat_ready["npub"], ready["npub"], provider_npub, remote_npub
+        "product lab passed: Chat {}, Drive {}, shared htree {}, HTL remote {}, standalone remote {}",
+        chat_ready["npub"], ready["npub"], provider_npub, mesh_remote_npub, remote_npub
     );
     Ok(())
 }

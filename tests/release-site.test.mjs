@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
+  assertTreesByteEqual,
   createReleasePlan,
   parseArgs,
   parsePublishOutput,
@@ -15,8 +19,6 @@ import { resolveHtreeCommand } from '../scripts/hashtreePaths.mjs';
 import staticAssetsWorker from '../scripts/https-static-assets-worker.mjs';
 
 const originalHtreeBin = process.env.HTREE_BIN;
-const originalHashtreeRepoRoot = process.env.HASHTREE_REPO_ROOT;
-const originalHashtreeRustDir = process.env.HASHTREE_RUST_DIR;
 
 function restoreEnv(name, value) {
   if (value === undefined) {
@@ -28,8 +30,6 @@ function restoreEnv(name, value) {
 
 test.afterEach(() => {
   restoreEnv('HTREE_BIN', originalHtreeBin);
-  restoreEnv('HASHTREE_REPO_ROOT', originalHashtreeRepoRoot);
-  restoreEnv('HASHTREE_RUST_DIR', originalHashtreeRustDir);
 });
 
 test('defaults to the stack.iris.to Worker custom domain and Hashtree site ref', () => {
@@ -51,8 +51,6 @@ test('does not attach the production domain to an overridden Worker', () => {
 
 test('builds and tests one root dist before publishing and deploying it', () => {
   delete process.env.HTREE_BIN;
-  delete process.env.HASHTREE_REPO_ROOT;
-  delete process.env.HASHTREE_RUST_DIR;
 
   const plan = createReleasePlan({
     workerName: 'iris-stack',
@@ -65,17 +63,19 @@ test('builds and tests one root dist before publishing and deploying it', () => 
 
   assert.deepEqual(
     plan.steps.map((step) => step.id),
-    ['build', 'test-1', 'test-2', 'publish', 'deploy'],
+    ['verify-htree', 'build', 'test-1', 'test-2', 'publish', 'deploy'],
   );
-  assert.deepEqual(plan.steps[0].command, ['pnpm', 'run', 'build']);
-  assert.deepEqual(plan.steps[1].command, ['node', '--test', 'tests/portable-build.test.mjs']);
-  assert.deepEqual(plan.steps[2].command, ['node', './scripts/portable-smoke.mjs']);
+  assert.deepEqual(plan.steps[0].command, ['htree', '--version']);
+  assert.deepEqual(plan.steps[1].command, ['pnpm', 'run', 'build']);
+  assert.deepEqual(plan.steps[2].command, ['node', '--test', 'tests/portable-build.test.mjs']);
+  assert.deepEqual(plan.steps[3].command, ['node', './scripts/portable-smoke.mjs']);
   assert.equal(plan.steps[0].cwd, plan.repoRoot);
   assert.equal(plan.steps[1].cwd, plan.repoRoot);
   assert.equal(plan.steps[2].cwd, plan.repoRoot);
-  assert.equal(plan.steps[3].cwd, plan.distDir);
-  assert.deepEqual(plan.steps[3].command, ['htree', 'add', '.', '--publish', 'iris-stack-site']);
-  assert.deepEqual(plan.steps[4].command, [
+  assert.equal(plan.steps[3].cwd, plan.repoRoot);
+  assert.equal(plan.steps[4].cwd, plan.distDir);
+  assert.deepEqual(plan.steps[4].command, ['htree', 'add', '.', '--publish', 'iris-stack-site']);
+  assert.deepEqual(plan.steps[5].command, [
     'node',
     './scripts/deploy-worker-assets.mjs',
     '--script',
@@ -91,13 +91,14 @@ test('builds and tests one root dist before publishing and deploying it', () => 
     '--domain',
     'stack.iris.to',
   ]);
-  assert.equal(plan.steps[4].cwd, plan.repoRoot);
+  assert.equal(plan.steps[5].cwd, plan.repoRoot);
 });
 
 test('runs Hashtree publish and Cloudflare deploy in parallel only after dist tests', async () => {
   let activeReleaseSteps = 0;
   let maxActiveReleaseSteps = 0;
   const calls = [];
+  let verificationStep;
 
   const result = await runRelease(
     {
@@ -110,6 +111,9 @@ test('runs Hashtree publish and Cloudflare deploy in parallel only after dist te
     },
     async (step) => {
       calls.push(step.id);
+      if (step.id === 'verify-publish') {
+        verificationStep = step;
+      }
       if (step.id === 'publish' || step.id === 'deploy') {
         activeReleaseSteps += 1;
         maxActiveReleaseSteps = Math.max(maxActiveReleaseSteps, activeReleaseSteps);
@@ -123,19 +127,35 @@ test('runs Hashtree publish and Cloudflare deploy in parallel only after dist te
           stderr: '',
         };
       }
+      if (step.id === 'verify-htree') {
+        return { status: 0, stdout: 'htree 0.2.88\n', stderr: '' };
+      }
       return { status: 0, stdout: '', stderr: '' };
     },
-    { buildOutputExists: () => true },
+    { buildOutputExists: () => true, verifyRetrievedTree: () => {} },
   );
 
-  assert.deepEqual(calls, ['build', 'test-1', 'test-2', 'publish', 'deploy']);
+  assert.deepEqual(calls, [
+    'verify-htree',
+    'build',
+    'test-1',
+    'test-2',
+    'publish',
+    'deploy',
+    'verify-publish',
+  ]);
   assert.equal(maxActiveReleaseSteps, 2);
   assert.deepEqual(result.publish, {
     nhash: 'nhash1ace',
     publishedRef: 'npub1example/iris-stack-site',
   });
   assert.equal(result.workerName, 'iris-stack');
+  assert.equal(result.verified, true);
   assert.deepEqual(result.domains, ['stack.iris.to']);
+  assert.equal(verificationStep.command[0], 'htree');
+  assert(verificationStep.command.includes('nhash1ace'));
+  assert(verificationStep.command.includes('get'));
+  assert.match(verificationStep.env.HTREE_CONFIG_DIR, /iris-stack-site-verify-/);
 });
 
 test('stops before testing or releasing when the build did not create dist', async () => {
@@ -153,6 +173,9 @@ test('stops before testing or releasing when the build did not create dist', asy
       },
       (step) => {
         calls.push(step.id);
+        if (step.id === 'verify-htree') {
+          return { status: 0, stdout: 'htree 0.2.88\n', stderr: '' };
+        }
         return { status: 0, stdout: '', stderr: '' };
       },
       { buildOutputExists: () => false },
@@ -160,7 +183,7 @@ test('stops before testing or releasing when the build did not create dist', asy
     /Build output directory not found/,
   );
 
-  assert.deepEqual(calls, ['build']);
+  assert.deepEqual(calls, ['verify-htree', 'build']);
 });
 
 test('supports dry runs without executing commands', async () => {
@@ -174,6 +197,7 @@ test('supports dry runs without executing commands', async () => {
   assert.equal(result.dryRun, true);
   assert.equal(ran, false);
   assert.deepEqual(result.steps.map((step) => step.id), [
+    'verify-htree',
     'build',
     'test-1',
     'test-2',
@@ -196,12 +220,22 @@ test('supports publishing to Hashtree without mutating Cloudflare', async () => 
           stderr: '',
         };
       }
+      if (step.id === 'verify-htree') {
+        return { status: 0, stdout: 'htree 0.2.88\n', stderr: '' };
+      }
       return { status: 0, stdout: '', stderr: '' };
     },
-    { buildOutputExists: () => true },
+    { buildOutputExists: () => true, verifyRetrievedTree: () => {} },
   );
 
-  assert.deepEqual(calls, ['build', 'test-1', 'test-2', 'publish']);
+  assert.deepEqual(calls, [
+    'verify-htree',
+    'build',
+    'test-1',
+    'test-2',
+    'publish',
+    'verify-publish',
+  ]);
   assert.equal(result.workerName, null);
   assert.deepEqual(result.domains, []);
 });
@@ -219,6 +253,67 @@ test('parses Hashtree publish output defensively', () => {
     () => parsePublishOutput('nhash1ace'),
     /Publish succeeded but no mutable ref was found in htree output/,
   );
+});
+
+test('rejects any release CLI other than exact hashtree-cli 0.2.88', async () => {
+  const options = parseArgs(['--skip-cloudflare'], {});
+  await assert.rejects(
+    runRelease(options, () => ({ status: 0, stdout: 'htree 0.2.87\n', stderr: '' })),
+    /requires htree 0\.2\.88/,
+  );
+});
+
+test('fails closed when the fresh Hashtree retrieval fails', async () => {
+  const calls = [];
+  const options = parseArgs([], {});
+  await assert.rejects(
+    runRelease(
+      options,
+      (step) => {
+        calls.push(step.id);
+        if (step.id === 'verify-htree') {
+          return { status: 0, stdout: 'htree 0.2.88\n', stderr: '' };
+        }
+        if (step.id === 'publish') {
+          return {
+            status: 0,
+            stdout: 'published: npub1example/iris-stack-site\nnhash1ace',
+            stderr: '',
+          };
+        }
+        return { status: step.id === 'verify-publish' ? 1 : 0, stdout: '', stderr: '' };
+      },
+      { buildOutputExists: () => true },
+    ),
+    /Verify published Hashtree tree .* failed with exit code 1/,
+  );
+  assert(
+    calls.includes('deploy'),
+    'Cloudflare and Hashtree release steps should stay independent',
+  );
+  assert.equal(calls.at(-1), 'verify-publish');
+});
+
+test('fresh-publish verifier compares both paths and file bytes', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'iris-stack-tree-compare-'));
+  const expected = path.join(root, 'expected');
+  const actual = path.join(root, 'actual');
+  try {
+    mkdirSync(path.join(expected, 'assets'), { recursive: true });
+    mkdirSync(path.join(actual, 'assets'), { recursive: true });
+    writeFileSync(path.join(expected, 'index.html'), 'same');
+    writeFileSync(path.join(actual, 'index.html'), 'same');
+    writeFileSync(path.join(expected, 'assets', 'app.js'), 'one');
+    writeFileSync(path.join(actual, 'assets', 'app.js'), 'one');
+    assert.doesNotThrow(() => assertTreesByteEqual(expected, actual));
+    writeFileSync(path.join(actual, 'extra.txt'), 'extra');
+    assert.throws(() => assertTreesByteEqual(expected, actual), /does not contain/);
+    rmSync(path.join(actual, 'extra.txt'));
+    writeFileSync(path.join(actual, 'assets', 'app.js'), 'two');
+    assert.throws(() => assertTreesByteEqual(expected, actual), /differs from dist/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('generates Worker Static Assets config for the root dist', () => {
@@ -282,8 +377,6 @@ test('redirect Worker upgrades HTTP and delegates HTTPS to the exact static asse
 
 test('uses an installed htree by default and honors an explicit binary override', () => {
   delete process.env.HTREE_BIN;
-  delete process.env.HASHTREE_REPO_ROOT;
-  delete process.env.HASHTREE_RUST_DIR;
   assert.deepEqual(resolveHtreeCommand('add', '.'), ['htree', 'add', '.']);
 
   process.env.HTREE_BIN = '/tmp/htree-test-bin';
