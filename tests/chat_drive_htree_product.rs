@@ -164,14 +164,15 @@ async fn run_product_scenario() -> Result<()> {
     let chat_provider = wait_for_chat_fetch(&mut chat, &provider_nhash, &provider_bytes).await?;
     assert_chat_fetch(&chat_provider, &provider_nhash, &provider_bytes)?;
     let drive_provider = fetch_drive(&mut drive, &provider_cid).await?;
-    assert_drive_fetch(&drive_provider, &provider_cid, &remote_udp)?;
+    assert_drive_fetch(&drive_provider, &provider_cid, &remote_udp)
+        .context("Drive provider-only fetch")?;
 
     ensure!(
         BLOB_DEFAULT_HTL == 10 && BLOB_DEFAULT_HTL.saturating_sub(1) == 9,
         "released Hashtree default HTL no longer exposes the expected one-hop budget"
     );
     let drive_mesh = fetch_drive(&mut drive, &mesh_cid).await?;
-    assert_drive_fetch(&drive_mesh, &mesh_cid, &remote_udp)?;
+    assert_drive_fetch(&drive_mesh, &mesh_cid, &remote_udp).context("Drive HTL fetch")?;
     ensure!(
         cat_blob(&htree_bin, &provider, &mesh_cid).await? == mesh_bytes,
         "the same-host provider did not cache its one-hop Hashtree result"
@@ -184,7 +185,8 @@ async fn run_product_scenario() -> Result<()> {
     let chat_standalone = fetch_chat(&mut chat, &standalone_nhash).await?;
     assert_chat_fetch(&chat_standalone, &standalone_nhash, &standalone_bytes)?;
     let drive_standalone = fetch_drive(&mut drive, &standalone_cid).await?;
-    assert_drive_fetch(&drive_standalone, &standalone_cid, &remote_udp)?;
+    assert_drive_fetch(&drive_standalone, &standalone_cid, &remote_udp)
+        .context("Drive standalone fetch after provider NoResult")?;
     ensure!(
         cat_blob(&htree_bin, &provider, &standalone_cid)
             .await
@@ -206,7 +208,8 @@ async fn run_product_scenario() -> Result<()> {
     let chat_after_death = fetch_chat(&mut chat, &after_death_nhash).await?;
     assert_chat_fetch(&chat_after_death, &after_death_nhash, &after_death_bytes)?;
     let drive_after_death = fetch_drive(&mut drive, &after_death_cid).await?;
-    assert_drive_fetch(&drive_after_death, &after_death_cid, &remote_udp)?;
+    assert_drive_fetch(&drive_after_death, &after_death_cid, &remote_udp)
+        .context("Drive standalone fetch after provider death")?;
     ensure!(
         cat_blob(&htree_bin, &provider, &after_death_cid)
             .await
@@ -314,7 +317,10 @@ async fn fetch_drive(drive: &mut ManagedProcess, cid: &str) -> Result<Value> {
 
 fn assert_drive_fetch(value: &Value, cid: &str, remote_udp: &str) -> Result<()> {
     ensure!(value["cid"] == cid);
-    ensure!(value["fetched"].as_u64().unwrap_or(0) > 0);
+    ensure!(
+        value["fetched"].as_u64().unwrap_or(0) > 0,
+        "Drive failed to fetch {cid}: {value}"
+    );
     ensure!(value["root_cached"] == true);
     assert_drive_udp(value, remote_udp)
 }

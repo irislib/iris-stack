@@ -161,7 +161,8 @@
       "depends_on": [
         "fips",
         "fips-tcp",
-        "hashtree"
+        "hashtree",
+        "cashu-service"
       ],
       "owns": [
         "black-box cross-repository process tests",
@@ -195,7 +196,9 @@
         "nostr-social-graph",
         "nostr-pubsub",
         "nostr-double-ratchet",
-        "fips"
+        "fips",
+        "fips-tcp",
+        "hashtree"
       ]
     },
     {
@@ -203,6 +206,8 @@
       "repository": "https://github.com/mmalmi/nostr-vpn",
       "intended_capabilities": [
         "fips",
+        "nostr-pubsub",
+        "nostr-social-graph",
         "cashu-service"
       ]
     },

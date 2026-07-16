@@ -12,11 +12,6 @@ provides credit and settlement.
 Applications combine these layers without treating a platform account, domain,
 or cloud vendor as an authority.
 
-The stack is intended to support permissionless network, storage, and service
-markets for humans and agents, and to extend what can be built with Bitcoin,
-Lightning, and Cashu. Decentralized compute and electricity trading remain
-future directions outside this document's scope.
-
 <figure class="app-catalog">
   <a href="https://apps.iris.to/"><img src="./apps-iris-to.png" width="960" height="794" alt="Browse the Iris app catalog"></a>
   <figcaption><a href="https://apps.iris.to/">apps.iris.to</a> catalogs <a href="#products">Iris Stack products</a>, including Iris Drive, Chat, Calendar, and Nostr VPN. The <a href="https://getdrive.iris.to/">Iris Drive native app</a> can resolve Hashtree-published apps through the local <code>iris.localhost</code> resolver and cache their files for offline launch; features that depend on peers or external services still require connectivity.</figcaption>
@@ -51,9 +46,6 @@ packet delivery, addressing, and MTU to the mesh protocol. An adapter may run
 over Ethernet, Bluetooth LE, UDP, TCP, Tor, WebRTC, a relay, or another medium.
 Several carriers can participate in
 one routed mesh; none is required to be IP-based.
-
-Its identity is the same public-key type and format as a Nostr public key, so
-one key can identify both a FIPS node and the author of Nostr events.
 
 Its identity is the same public-key type and format as a Nostr public key, so
 one key can identify both a FIPS node and the author of Nostr events.

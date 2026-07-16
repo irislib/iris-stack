@@ -5,6 +5,9 @@ import test from 'node:test';
 
 const root = resolve(import.meta.dirname, '..');
 const stack = JSON.parse(readFileSync(resolve(root, 'stack.json'), 'utf8'));
+const guide = readFileSync(resolve(root, 'docs/iris-stack.md'), 'utf8');
+const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
+const siteApp = readFileSync(resolve(root, 'site/src/App.svelte'), 'utf8');
 const nativeWorkflow = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8');
 const productWorkflow = readFileSync(resolve(root, '.github/workflows/product-lab.yml'), 'utf8');
 const vpnLab = readFileSync(resolve(root, 'scripts/vpn-product-lab.sh'), 'utf8');
@@ -23,6 +26,36 @@ test('the machine-readable stack includes the documented capability layers', () 
   ]) {
     assert(componentIds.has(id), `expected stack.json component ${id}`);
   }
+});
+
+test('machine-readable product composition matches the exercised integrations', () => {
+  const lab = stack.components.find(({ id }) => id === 'iris-stack-lab');
+  const products = new Map(stack.products.map((product) => [product.id, product]));
+
+  assert.deepEqual(lab.depends_on, ['fips', 'fips-tcp', 'hashtree', 'cashu-service']);
+  for (const capability of ['fips-tcp', 'hashtree']) {
+    assert(products.get('iris-chat').intended_capabilities.includes(capability));
+  }
+  for (const capability of ['nostr-pubsub', 'nostr-social-graph']) {
+    assert(products.get('nostr-vpn').intended_capabilities.includes(capability));
+  }
+});
+
+test('the public guide links products without leaking private workspace details', () => {
+  for (const url of [
+    'https://irischat.org/',
+    'https://chat.iris.to/',
+    'https://getdrive.iris.to/',
+    'https://drive.iris.to/',
+    'https://nostrvpn.org/',
+    'https://git.iris.to/',
+    'https://contacts.iris.to/',
+    'https://audio.iris.to/',
+    'https://apps.iris.to/',
+  ]) {
+    assert(guide.includes(url), `expected public guide link ${url}`);
+  }
+  assert.doesNotMatch(`${readme}\n${guide}\n${siteApp}`, /\/Users\/|~\/src\/|mission-control|\.keys\//i);
 });
 
 test('the VPN product gate delegates to one pinned owner harness', () => {
