@@ -101,7 +101,9 @@ relay servers.
 distributes FIPS peer adverts and signed peer ratings, along with Hashtree
 mutable `npub/path` root announcements and updates. FIPS and Hashtree can still
 operate with manually configured peers or roots—just as IP can operate without
-DHCP—but they lose automatic decentralized discovery and updates.
+DHCP—but they lose automatic decentralized discovery and updates. Discovery
+supplies candidates; FIPS authenticates them, and local policy decides which
+peers and advertised capabilities to admit.
 
 The same event plane also carries social posts, app updates, repository
 announcements, and service offers. Events announce large content by hash;
@@ -122,24 +124,7 @@ authenticated pairwise sessions. [Marmot](https://github.com/marmot-protocol/mar
 instead uses MLS as a continuous group key-agreement and membership-state
 protocol.
 
-### 3.4 Peer discovery from one FIPS link
-
-An authenticated FIPS connection is a bootstrap path. Through
-`nostr-pubsub-fips`, an application sends an ordinary Nostr subscription and
-its peer returns or forwards signed, expiring adverts:
-
-| Question | How the answer is used |
-| --- | --- |
-| Which Ethernet, Bluetooth LE, UDP, WebRTC, or other transport endpoint can I connect FIPS to? | Treat the endpoint and claimed identity as a candidate, then authenticate it with FIPS. |
-| Which FIPS identity offers Hashtree, `nostr-pubsub`, or another capability? | Connect to or reuse that peer, then use the advertised interface. |
-
-The DHCP reference applies to one form of endpoint discovery: *which reachable
-transport endpoint can I connect FIPS to?* Capability adverts also answer
-*which FIPS identity offers this service?* FIPS authenticates each candidate,
-and local author, social, capability, and resource policy decides admission.
-Relays, indexes, and other pub/sub routes can answer the same request.
-
-### 3.5 Social graph as local policy
+### 3.4 Social graph as local policy
 
 [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
 turns follows, mutes, signed facts, and ratings into viewer-relative signals.
@@ -169,7 +154,7 @@ fetch for socially close or reputable peers first; a FIPS host can reserve
 connection slots or bandwidth for them. Each node controls this scheduling and
 can reserve capacity for unfamiliar peers.
 
-### 3.6 Human names without a global namespace
+### 3.5 Human names without a global namespace
 
 Cryptographic keys are secure addresses but poor human names. Naming is a
 signed search problem:
