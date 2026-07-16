@@ -52,6 +52,7 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /humans, personal agents, and services/);
   assert.match(guide, /Decentralized compute is another possible route type/);
   assert.match(guide, /\[FIPS\]\(https:\/\/git\.iris\.to\//);
+  assert.match(guide, /same public-key type and format as a Nostr public key/);
   assert.match(guide, /\[`nostr-pubsub`\]\(https:\/\/git\.iris\.to\//);
   assert.match(guide, /DHCP reference applies to endpoint discovery/);
   assert.match(guide, /nostr-pubsub-fips/);
