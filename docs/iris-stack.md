@@ -203,7 +203,14 @@ content; Hashtree routes carry the blobs.
   adds canonical by-ID records, derived key/search roots, and a manifest.
 - An indexer may curate centrally and publish snapshots through a signed
   mutable `npub/tree`; readers can fetch blocks from caches, FIPS peers, or
-  compatible stores, verify them, query locally, and mirror or fork the root.
+  compatible stores, verify them, query locally, mirror the published root, or
+  derive their own root by adding or removing records while reusing unchanged
+  blocks.
+
+Once the root and its blocks are available locally or through mirrors, the
+snapshot remains readable even if its maintainer goes offline. Unlike a live
+Nostr relay or centralized database API, answering queries does not require the
+original indexing service.
 
 This supports reproducible Nostr-relay-like read projections. The publisher
 defines the available queries and update cadence; applications can query or
