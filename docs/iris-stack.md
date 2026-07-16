@@ -12,6 +12,11 @@ provides credit and settlement.
 Applications combine these layers without treating a platform account, domain,
 or cloud vendor as an authority.
 
+The stack is intended to support permissionless network, storage, and service
+markets for humans and agents, and to extend what can be built with Bitcoin,
+Lightning, and Cashu. Decentralized compute and electricity trading remain
+future directions outside this document's scope.
+
 <figure class="app-catalog">
   <a href="https://apps.iris.to/"><img src="./apps-iris-to.png" width="960" height="794" alt="Browse the Iris app catalog"></a>
   <figcaption><a href="https://apps.iris.to/">apps.iris.to</a> catalogs <a href="#products">Iris Stack products</a>, including Iris Drive, Chat, Calendar, and Nostr VPN. The <a href="https://getdrive.iris.to/">Iris Drive native app</a> can resolve Hashtree-published apps through the local <code>iris.localhost</code> resolver and cache their files for offline launch; features that depend on peers or external services still require connectivity.</figcaption>
@@ -287,7 +292,23 @@ apps beyond the examples below.
 | Iris Contacts | Public-key profiles, social context, and local UUID-backed contacts without a global account directory | [Web app](https://contacts.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-contacts) |
 | Iris Audio | A Hashtree-backed music catalog that demonstrates portable collection and search indexes | [Web app](https://audio.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-audio) |
 | Iris Sites | A launcher and isolated browser runtime for web apps published as Hashtree trees | [App catalog](https://apps.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites) |
-| Iris Git | Git repositories addressed through Nostr and Hashtree instead of one forge account or origin server | [Web app](https://git.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-git) |
+| Iris Git | Git repositories addressed through Nostr and Hashtree; `git-remote-htree` gives ordinary Git fetch and push over `htree://` remotes | [Web app](https://git.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-git) · [Remote helper](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) |
+
+### 6.1 Product composition
+
+Current composition names integrations already present in product source and
+ordinary product paths. Optional or in-progress paths are identified separately
+and are not presented as shipped defaults.
+
+| Product | Current composition | Optional or in progress |
+| --- | --- | --- |
+| Iris Chat | [Nostr](#nostr-identity-and-signed-facts) events, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) routing, [`nostr-double-ratchet`](#asynchronous-private-messaging-with-nostr-double-ratchet) messages, [FIPS](#fips-authenticated-datagrams) live links, [`fips-tcp`](#reliable-streams-with-fips-tcp) linked-device sync, and [Hashtree](#hashtree-blobs-and-routes) attachments | Ordinary Nostr relay routes remain compatible |
+| Iris Drive | [Hashtree](#hashtree-blobs-and-routes) files, directories, verification, cache, and the native `iris.localhost` resolver | FIPS and `fips-tcp` peer routes plus adaptive relay sourcing are integration work |
+| Nostr VPN | [FIPS](#fips-authenticated-datagrams) private and routed mesh, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) control events, and [social-graph](#social-graph-as-local-policy) peer policy | [Cashu](#cashu-service-layer) settlement for paid exits is optional |
+| Iris Contacts | [Nostr](#nostr-identity-and-signed-facts) profiles, [social graph](#social-graph-as-local-policy), and UUID-backed fact snapshots | — |
+| Iris Audio | [Hashtree](#hashtree-blobs-and-routes) media, [search indexes and collections](#hashtree-indexes-for-large-datasets), and Nostr mutable-root announcements | FIPS content routes are optional |
+| Iris Sites | [Hashtree](#hashtree-blobs-and-routes) app trees, Nostr mutable roots, isolated web origins, and the Iris Drive resolver | — |
+| Iris Git | Nostr repository roots, [Hashtree](#hashtree-blobs-and-routes) Git data, [social-graph](#social-graph-as-local-policy) context, and [`git-remote-htree`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) | — |
 
 ## 7. Repository index
 
@@ -300,6 +321,7 @@ apps beyond the examples below.
 | Reliable FIPS streams | [fips-tcp](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp) · [GitHub mirror](https://github.com/mmalmi/fips-tcp) |
 | Decentralized pub/sub | [nostr-pubsub](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub) · [GitHub mirror](https://github.com/mmalmi/nostr-pubsub) |
 | Content-addressed storage and routing | [hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree) · [GitHub mirror](https://github.com/mmalmi/hashtree) |
+| Git remote helper for `htree://` URLs | [`git-remote-htree`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) · [GitHub mirror](https://github.com/mmalmi/hashtree/tree/master/rust/crates/git-remote-htree) |
 | Content-addressed search indexes | [`@hashtree/index`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-index) · [GitHub mirror](https://github.com/mmalmi/hashtree/tree/master/ts/packages/hashtree-index) |
 | Content-addressed collections | [`@hashtree/collection`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-collection) · [GitHub mirror](https://github.com/mmalmi/hashtree/tree/master/ts/packages/hashtree-collection) |
 | App updates over Hashtree | [`hashtree-updater`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/hashtree-updater) · [GitHub mirror](https://github.com/mmalmi/hashtree/tree/master/rust/crates/hashtree-updater) |
