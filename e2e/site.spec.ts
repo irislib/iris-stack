@@ -35,6 +35,13 @@ test('renders the public architecture Markdown', async ({ page }) => {
   const titleBottom = await title.evaluate((element) => element.getBoundingClientRect().bottom);
   const subtitleTop = await subtitle.evaluate((element) => element.getBoundingClientRect().top);
   expect(subtitleTop - titleBottom).toBeLessThanOrEqual(40);
+  const tableWidths = await page.locator('.markdown table').evaluateAll((tables) =>
+    tables.map((table) => ({
+      table: table.getBoundingClientRect().width,
+      row: table.querySelector('tr')?.getBoundingClientRect().width ?? 0,
+    })),
+  );
+  expect(tableWidths.every(({ table, row }) => Math.abs(table - row) <= 1)).toBe(true);
   expect(errors).toEqual([]);
 });
 

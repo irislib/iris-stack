@@ -44,10 +44,6 @@ profiles, follows, mutes, messages, capability
 adverts, ratings, release roots, and application-defined facts. Signatures bind
 an event to its author; each application decides what that author may do.
 
-[Iris Chat](https://chat.iris.to/) uses Nostr keys as portable participant
-identities and carries encrypted message envelopes as signed events, without
-requiring phone-number or email accounts.
-
 ### 2.2 Signed fact events
 
 Fact events give application data a reusable subject–predicate–object shape. A
@@ -63,9 +59,10 @@ identity tools add UUID-based rosters and facts for identities that span several
 keys or devices. They support key changes without changing every reference to
 the identity.
 
-[Iris Contacts](https://contacts.iris.to/) keeps one UUID subject for a contact
-while `name`, `controls`, and other signed facts describe names, keys, and
-relationships that may change over time.
+| Example app | Usage |
+| --- | --- |
+| [Iris Chat](https://chat.iris.to/) | Uses Nostr keys as portable participant identities and carries encrypted message envelopes as signed events without phone-number or email accounts. |
+| [Iris Contacts](https://contacts.iris.to/) | Keeps one UUID subject for a contact while `name`, `controls`, and other signed facts describe names, keys, and relationships that may change. |
 
 ## 3. Connectivity
 
@@ -87,10 +84,6 @@ path selection, forwarding, admission, and link health. An IPv6 adapter lets
 existing IP software reach the same identities; native applications use FIPS
 service datagrams directly.
 
-[Nostr VPN](https://nostrvpn.org/) uses FIPS identities for private mesh peers,
-so a peer can move between available carriers without changing the identity
-that its routes and access policy refer to.
-
 ### 3.2 Reliable streams with fips-tcp
 
 [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp)
@@ -100,9 +93,10 @@ remote address remains an authenticated FIPS identity. It suits protocols that
 need a continuous connection; event exchange and hash-addressed blobs can use
 their own higher-level delivery models.
 
-Iris Drive uses `fips-tcp` for reliable multi-frame Hashtree transfers between
-authenticated peers; Hashtree still verifies the received content by hash above
-the stream.
+| Example app | Usage |
+| --- | --- |
+| [Nostr VPN](https://nostrvpn.org/) | Uses FIPS identities for private mesh peers, allowing carriers to change without changing the identity referenced by routes and access policy. |
+| [Iris Drive](https://getdrive.iris.to/) | Uses `fips-tcp` for reliable multi-frame Hashtree transfers between authenticated peers, then verifies content by hash above the stream. |
 
 ## 4. Publish-subscribe and discovery
 
@@ -133,10 +127,6 @@ peer adverts, machine ratings, Hashtree roots, app updates, repository
 announcements, and service offers. Events announce large content by hash;
 Hashtree routes carry the bytes.
 
-Iris Chat uses this plane for live message subscriptions, while Nostr VPN uses
-it for peer, route, and service announcements without assigning either product
-a mandatory relay.
-
 ### 4.2 Signed peer and service discovery
 
 Discovery adverts are candidates, not authority. Signed, expiring transport
@@ -155,9 +145,10 @@ over that connection and receive or forward the same adverts. Relays, local
 indexes, and other pub/sub peers can answer the same query; no source is
 required for discovery to work.
 
-For example, a Nostr VPN exit node or a Hashtree storage provider can announce
-both a reachable FIPS identity and the service it offers. A client verifies the
-same identity before considering that offer.
+| Example app | Usage |
+| --- | --- |
+| [Iris Chat](https://chat.iris.to/) | Uses peer-to-peer pub/sub for live message subscriptions while retaining optional relay routes. |
+| [Nostr VPN](https://nostrvpn.org/) | Publishes peer, route, and service announcements; an exit node can advertise both its reachable FIPS identity and its offered service. |
 
 ## 5. Verifiable content and indexes
 
@@ -182,9 +173,6 @@ through that interface. Every response is verified against the requested hash.
 A route miss leaves the other routes available. `nostr-pubsub` announces
 content; Hashtree routes carry the blobs.
 
-Iris Drive uses this route model to find the same verified file in a local
-cache, a nearby peer, or a remote provider without changing the file's identity.
-
 ### 5.2 Hashtree indexes for large datasets
 
 - [`@hashtree/index`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-index)
@@ -200,25 +188,19 @@ This supports reproducible Nostr-relay-like read projections. The publisher
 defines the available queries and update cadence; applications can query or
 federate several compatible publishers.
 
-[Iris Audio](https://audio.iris.to/) demonstrates the model with shared song,
-artist, and album search roots queried directly by the browser.
-[Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-audio).
-
 ### 5.3 Web apps and updates as verified trees
 
 A static web app can be published as a Hashtree directory. Its `nhash`
 identifies one immutable version; a signed `npub/tree` name can advance to a
 new version without invalidating the old one.
 
-Iris Drive serves executable sites from separate browser origins such as
+A local app runtime can serve executable sites from separate browser origins such as
 `sitename.npub.iris.localhost` or `<nhash>.iris.localhost`. The separation keeps
 unrelated apps from sharing cookies, storage, or service workers. Application
 sandboxing remains a separate concern.
 
-[Iris Sites at apps.iris.to](https://apps.iris.to/) lists and launches these
-apps. The catalog aids discovery; signed roots identify publisher versions and
+Catalogs can aid discovery, while signed roots identify publisher versions and
 Hashtree hashes verify the app bytes.
-[Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites).
 
 `hashtree-updater` applies the same model to native releases. A signed root
 arrives through `nostr-pubsub`; the app checks the publisher, fetches the
@@ -228,6 +210,12 @@ the matching artifact.
 Runtime updates can receive both notice and bytes from stack-native peers, with
 relay, Blossom, and HTTPS compatibility routes available.
 [`hashtree-updater` source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/hashtree-updater).
+
+| Example app | Usage |
+| --- | --- |
+| [Iris Drive](https://getdrive.iris.to/) | Finds the same verified file in a local cache, nearby peer, or remote provider, and serves Hashtree apps from isolated local origins. |
+| [Iris Audio](https://audio.iris.to/) | Queries shared song, artist, and album collection/search roots directly from the browser. |
+| [Iris Sites](https://apps.iris.to/) | Catalogs and launches web apps whose signed roots identify versions and whose Hashtree hashes verify the bytes. |
 
 ## 6. Social context and contextual naming
 
@@ -246,15 +234,14 @@ unknown identities. There is no global trust score.
 
 The [`nostr-pubsub-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub/crates/nostr-pubsub-social-graph)
 adapter uses social distance, nearby mutes, and signed service ratings to allow,
-throttle, drop, or prioritize Nostr event authors and pub/sub peers. Nostr VPN
-uses this policy for peer and event admission. [FIPS](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips)
+throttle, drop, or prioritize Nostr event authors and pub/sub peers.
+[FIPS](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips)
 publishes machine-generated peer ratings and can use selected rating authors to
 order candidate peers during discovery.
 
 [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree)
 uses the graph for crawl scope, relay and storage access, mirror selection, and
-profile search. Iris Contacts, Drive, Git, and Social use it to rank profiles,
-search results, feeds, and sharing contacts.
+profile search.
 
 These signals can feed resource schedulers. A Hashtree node can serve or
 fetch for socially close or reputable peers first; a FIPS host can reserve
@@ -288,9 +275,12 @@ adopts a private, unambiguous mapping to a secure identity.
 The naming architecture combines Hashtree-backed profile search and social
 ranking with `nostr-social-memory` UUID identities, petnames, aliases, and
 multiple keys.
-[Iris Contacts](https://contacts.iris.to/) combines profiles, graph-ranked
-search, and its own UUID-backed contacts encoded as fact snapshots; its
-[source is on Iris Git](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-contacts).
+
+| Example app | Usage |
+| --- | --- |
+| [Nostr VPN](https://nostrvpn.org/) | Uses graph distance, mutes, and signed service ratings for peer and event admission. |
+| [Iris Contacts](https://contacts.iris.to/) | Combines profiles, graph-ranked search, contextual names, and UUID-backed contacts encoded as fact snapshots. |
+| [Iris Drive](https://getdrive.iris.to/) | Uses social context to rank profiles, search results, sharing contacts, and candidate providers. |
 
 ## 7. Payments
 
@@ -304,9 +294,10 @@ Products choose pricing, credit limits, and accepted settlement methods. The
 same adapters can account for connectivity, bandwidth, storage, routing, or
 other services, while free and reciprocal routes remain available.
 
-For example, a Nostr VPN exit node can charge for forwarded traffic and settle
-the balance with Cashu. A Hashtree provider can use the same credit-and-receipt
-model for storage or blob delivery.
+| Example app | Usage |
+| --- | --- |
+| [Nostr VPN](https://nostrvpn.org/) | Lets an exit node charge for forwarded traffic and settle the balance with Cashu. |
+| [Iris Drive](https://getdrive.iris.to/) | Can use the same credit-and-receipt model for paid storage or blob delivery. |
 
 ## 8. Products
 
