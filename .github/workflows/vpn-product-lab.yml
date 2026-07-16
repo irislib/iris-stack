@@ -1,0 +1,44 @@
+name: Nostr VPN released product lab
+
+on:
+  workflow_call:
+    inputs:
+      nvpn_rev:
+        description: Exact public Nostr VPN commit
+        required: false
+        default: bb9de1977d732757bc90315aea24f8fbfce2765e
+        type: string
+      nvpn_git_url:
+        description: Public Nostr VPN Git source
+        required: false
+        default: https://github.com/mmalmi/nostr-vpn.git
+        type: string
+  workflow_dispatch:
+    inputs:
+      nvpn_rev:
+        description: Exact public Nostr VPN commit
+        required: false
+        default: bb9de1977d732757bc90315aea24f8fbfce2765e
+        type: string
+      nvpn_git_url:
+        description: Public Nostr VPN Git source
+        required: false
+        default: https://github.com/mmalmi/nostr-vpn.git
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  nostr-vpn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      IRIS_STACK_NVPN_REV: ${{ inputs.nvpn_rev }}
+      IRIS_STACK_NVPN_GIT_URL: ${{ inputs.nvpn_git_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run canonical two-process Nostr VPN gate
+        run: scripts/vpn-product-lab.sh

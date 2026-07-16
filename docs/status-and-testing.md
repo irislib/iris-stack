@@ -77,7 +77,7 @@ Hashtree HTL or settlement policy.
 | Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, exact fact lookup, and the `nostr-identity` 0.4.0 crate exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
 | Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. The stack process gate uses its real loopback CDK mints and SQLite wallets to prove offline failure, payer death/replacement, exact-token recovery, second-receiver rejection, receiver-ACK completion, and conservation. | Bind the generic recovery path to authenticated paid bandwidth and storage effects. Mint trust and cross-mint settlement remain explicit policy. |
 | Iris Chat | Native 0.1.36 uses the FIPS 0.4 stack, shared decentralized pub/sub, and paged device synchronization. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
-| Nostr VPN | Its shared FIPS/pub-sub integration preserves explicit application-owned UDP roster links and standalone operation. | Test roster churn concurrently with other local products. Do not delegate VPN routes or roster policy to a same-host process. |
+| Nostr VPN | Public commit `bb9de1977d732757bc90315aea24f8fbfce2765e` has a canonical two-process Docker gate: explicit application-owned UDP roster links carry bidirectional traffic while a signed kind-37196 event crosses shared TCP/FIPS pubsub. Iris Stack pins and delegates to that owner test. | Test roster churn concurrently with other local products. Do not delegate VPN routes or roster policy to a same-host process. |
 | Iris Drive | The canonical storage interface and same-host provider path use Hashtree blob routes, while the product retains standalone storage and outbound links. | Finish the native carrier release gate and repeatedly prove large multi-frame retrieval, provider death/replacement, and fallback through the product-owned route. |
 | Iris Git | Git data and mutable repository roots already use Hashtree and Nostr. | Treat deeper FIPS discovery and paid repository storage as product integrations, not reasons to fork Hashtree transport or Git object semantics. |
 
@@ -115,6 +115,13 @@ versions.
   The `cashu_payment_product` process gate consumes those registry artifacts;
   it proves the generic service-payment failure/replay/resumption boundary, not
   a paid Iris product meter.
+- Nostr VPN public commit
+  `bb9de1977d732757bc90315aea24f8fbfce2765e` owns
+  `scripts/e2e-connect-docker.sh`. Its two real processes preserve explicit
+  UDP roster traffic in both directions while delivering a signed kind-37196
+  paid-exit event through the shared TCP/FIPS pubsub service. Iris Stack's
+  `scripts/vpn-product-lab.sh` fetches that exact snapshot and invokes the
+  owner harness without copying its protocol or topology.
 
 ## Repository organization
 

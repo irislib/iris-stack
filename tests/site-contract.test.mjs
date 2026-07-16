@@ -10,6 +10,8 @@ const icon = readFileSync(resolve(root, 'site/public/favicon.svg'), 'utf8');
 const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
 const guide = readFileSync(resolve(root, 'docs/iris-stack.md'), 'utf8');
 const stack = JSON.parse(readFileSync(resolve(root, 'stack.json'), 'utf8'));
+const vpnLab = readFileSync(resolve(root, 'scripts/vpn-product-lab.sh'), 'utf8');
+const vpnWorkflow = readFileSync(resolve(root, '.github/workflows/vpn-product-lab.yml'), 'utf8');
 
 const productUrls = [
   'https://irischat.org/',
@@ -83,4 +85,18 @@ test('the machine-readable stack keeps the capabilities used by the visual map',
   for (const id of ['nostr', 'fips', 'fips-tcp', 'nostr-pubsub', 'hashtree', 'nostr-social-graph', 'cashu-service']) {
     assert(componentIds.has(id), `expected stack.json component ${id}`);
   }
+});
+
+test('the VPN product gate delegates to one pinned, manually invoked owner harness', () => {
+  const revision = 'bb9de1977d732757bc90315aea24f8fbfce2765e';
+
+  assert(vpnLab.includes(revision));
+  assert(vpnWorkflow.includes(revision));
+  assert.match(vpnLab, /IRIS_STACK_NVPN_REV/);
+  assert.match(vpnLab, /IRIS_STACK_NVPN_GIT_URL/);
+  assert.match(vpnLab, /scripts\/e2e-connect-docker\.sh/);
+  assert.doesNotMatch(vpnLab, /\bnvpn\s+(?:set|connect|pubsub)\b/);
+  assert.match(vpnWorkflow, /^  workflow_call:/m);
+  assert.match(vpnWorkflow, /^  workflow_dispatch:/m);
+  assert.doesNotMatch(vpnWorkflow, /^  (?:push|pull_request):/m);
 });

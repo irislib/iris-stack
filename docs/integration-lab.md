@@ -125,6 +125,41 @@ claim integration with paid FIPS forwarding, Hashtree storage, or VPN traffic
 metering; each product must still bind its authenticated service effect to the
 receipt and receiver acknowledgement.
 
+## Nostr VPN released-product gate
+
+The VPN product gate is a thin launcher for Nostr VPN's owner-repository
+process test. By default it fetches exact public commit
+[`bb9de1977d732757bc90315aea24f8fbfce2765e`](https://github.com/mmalmi/nostr-vpn/commit/bb9de1977d732757bc90315aea24f8fbfce2765e)
+into a temporary checkout and runs its canonical
+`scripts/e2e-connect-docker.sh`. Iris Stack does not copy the VPN topology,
+commands, protocol, or assertions.
+
+That owner harness starts two real `nvpn` processes with separate identities
+and explicit UDP roster endpoints. It proves that both application-owned links
+carry traffic in both directions while the same processes deliver a signed
+kind-37196 paid-exit event through the shared TCP/FIPS pubsub service. The gate
+does not introduce local route delegation, shared egress, or a mandatory
+same-host process.
+
+The gate is intentionally opt-in because it builds and runs privileged network
+containers. Run the pinned coordinate with:
+
+```sh
+scripts/vpn-product-lab.sh
+```
+
+Pre-release candidates can be selected without editing this repository:
+
+```sh
+IRIS_STACK_NVPN_REV=<exact-commit> \
+IRIS_STACK_NVPN_GIT_URL=<public-git-url> \
+scripts/vpn-product-lab.sh
+```
+
+`.github/workflows/vpn-product-lab.yml` exposes only manual and reusable
+workflow entry points. Ordinary pushes and pull requests do not incur the
+Docker gate's cost.
+
 ## Run the lab
 
 ```sh
