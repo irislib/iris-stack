@@ -85,6 +85,7 @@ impl ManagedProcess {
         })
     }
 
+    #[allow(dead_code)] // Used by other process-test crates sharing this helper.
     pub async fn line_containing(&mut self, marker: &str) -> Result<String> {
         let label = self.label.clone();
         timeout(WAIT, async {

@@ -10,6 +10,10 @@ const icon = readFileSync(resolve(root, 'site/public/favicon.svg'), 'utf8');
 const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
 const guide = readFileSync(resolve(root, 'docs/iris-stack.md'), 'utf8');
 const stack = JSON.parse(readFileSync(resolve(root, 'stack.json'), 'utf8'));
+const nativeWorkflow = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8');
+const productWorkflow = readFileSync(resolve(root, '.github/workflows/product-lab.yml'), 'utf8');
+const vpnLab = readFileSync(resolve(root, 'scripts/vpn-product-lab.sh'), 'utf8');
+const vpnWorkflow = readFileSync(resolve(root, '.github/workflows/vpn-product-lab.yml'), 'utf8');
 
 const productUrls = [
   'https://irischat.org/',
@@ -52,6 +56,7 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /humans, personal agents, and services/);
   assert.match(guide, /Decentralized compute is another possible route type/);
   assert.match(guide, /\[FIPS\]\(https:\/\/git\.iris\.to\//);
+  assert.match(guide, /same public-key type and format as a Nostr public key/);
   assert.match(guide, /\[`nostr-pubsub`\]\(https:\/\/git\.iris\.to\//);
   assert.match(guide, /DHCP reference applies to endpoint discovery/);
   assert.match(guide, /nostr-pubsub-fips/);
@@ -82,4 +87,29 @@ test('the machine-readable stack keeps the capabilities used by the visual map',
   for (const id of ['nostr', 'fips', 'fips-tcp', 'nostr-pubsub', 'hashtree', 'nostr-social-graph', 'cashu-service']) {
     assert(componentIds.has(id), `expected stack.json component ${id}`);
   }
+});
+
+test('the VPN product gate delegates to one pinned owner harness on bounded triggers', () => {
+  const revision = '4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3';
+
+  assert(vpnLab.includes(revision));
+  assert(vpnWorkflow.includes(revision));
+  assert.match(vpnLab, /IRIS_STACK_NVPN_REV/);
+  assert.match(vpnLab, /IRIS_STACK_NVPN_GIT_URL/);
+  assert.match(vpnLab, /scripts\/e2e-connect-docker\.sh/);
+  assert.doesNotMatch(vpnLab, /\bnvpn\s+(?:set|connect|pubsub)\b/);
+  assert.match(vpnWorkflow, /^  workflow_call:/m);
+  assert.match(vpnWorkflow, /^  workflow_dispatch:/m);
+  assert.match(vpnWorkflow, /^  push:\n    paths:/m);
+  assert.match(vpnWorkflow, /^  pull_request:\n    paths:/m);
+});
+
+test('push and pull-request CI covers native and released-product composition', () => {
+  assert.match(nativeWorkflow, /^  push:/m);
+  assert.match(nativeWorkflow, /^  pull_request:/m);
+  assert.match(nativeWorkflow, /cargo test --locked --all-targets/);
+  assert.match(productWorkflow, /^  push:\n    paths:/m);
+  assert.match(productWorkflow, /^  pull_request:\n    paths:/m);
+  assert.match(productWorkflow, /^  chat-drive-hashtree:\n    runs-on:/m);
+  assert.doesNotMatch(productWorkflow, /github\.event_name.*workflow_(?:call|dispatch)/);
 });

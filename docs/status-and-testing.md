@@ -24,11 +24,13 @@ protocol. The architecture stays tractable when it enforces four rules:
 4. A shared abstraction should delete more policy and failure modes than it
    adds; similar-looking code is not enough reason to merge semantics.
 
-The economic loop is less mature than the protocol loop. Cashu service credit,
-receipts, and settlement adapters exist, but paid forwarding and paid storage
-still need released-product simulations with a real local mint, failures,
-replay, restart, and settlement recovery before they should be described as a
-deployed market.
+The economic loop is less mature than the protocol loop. The stack lab
+composes Cashu service credit, receipts, a real local CDK mint, an offline
+failure, payer replacement, exact-token replay, double-spend rejection, and
+settlement recovery across operating-system processes. Paid forwarding and
+paid storage still need product-specific gates that bind an authenticated
+service effect to the receipt and receiver acknowledgement before they should
+be described as a deployed market.
 
 ## Dependency direction
 
@@ -68,16 +70,16 @@ Hashtree HTL or settlement policy.
 
 | Area | Evidence as of 2026-07-16 | Remaining integration risk |
 | --- | --- | --- |
-| FIPS | Rust 0.4.5 provides authenticated links, fixed loopback UDP rendezvous, capability exchange, routing, and multiple carriers. The same-host identity hint is proved by the ordinary authenticated handshake. The final bounded native matrix passed 1,971 tests with four skips, plus strict all-target/all-feature clippy and formatting. | Continue cross-carrier churn, bounded-admission, TypeScript parity, and mobile lifecycle gates. A local peer must never become a mandatory daemon or implicit egress owner. |
+| FIPS | Rust 0.4.5 and TypeScript runtime 0.0.26 provide authenticated links, fixed loopback UDP rendezvous, capability exchange, routing, and multiple carriers. The same-host identity hint is proved by the ordinary authenticated handshake. The cross-language Chromium matrix passed 16/16 plus five sequential replacement-page repetitions against native 0.4.5. | Continue cross-carrier churn, bounded-admission, and mobile lifecycle gates. A local peer must never become a mandatory daemon or implicit egress owner. |
 | `fips-tcp` | Rust crates 0.2.0 provide reliable ordered streams over FIPS and cross-language wire fixtures. | Reset, retransmission, acknowledgment, backpressure, and long loss/reordering simulations belong here. Application record delivery is a separate semantic layer. |
 | `nostr-pubsub` | Core 0.1.11 and FIPS adapter 0.3.1 share the standard `REQ`/`EVENT`/`CLOSE` service and have simulator, stress, role-blind discovery, and Cashu-incentive gates. | Browser and native consumers must use the shared carrier instead of product-private endpoint namespaces. Offline history remains a storage concern. |
-| Hashtree | Core 0.2.86, LMDB 0.2.84, network 0.2.84, FIPS transport 0.4.5, and CLI 0.2.93 provide one adaptive read-only `BlobRouter` over opaque routes and one application-owned adaptive `PoolStore`. Multiprocess crash/resize/pin/GC, HTL, corruption, provider churn, and TypeScript/native interop gates pass. | Complete the resumable production pool migration and cutover, then keep exercising multi-hop churn and bounded recovery through released artifacts. |
+| Hashtree | Core 0.2.86, LMDB 0.2.84, network 0.2.84, FIPS transport 0.4.5, and CLI 0.2.93 provide one adaptive read-only `BlobRouter` over opaque routes and one application-owned adaptive `PoolStore`. Multiprocess crash/resize/pin/GC, HTL, corruption, provider churn, and native product gates pass. | Publish the already-tested TypeScript `BlobRouter` parity release after the native binary artifact gate, then keep exercising multi-hop churn and bounded recovery through released artifacts. |
 | Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, exact fact lookup, and the `nostr-identity` 0.4.0 crate exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
-| Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. Its reusable simulation feature starts a real loopback CDK mint with SQLite and covers proof transfer and double-spend rejection. | Compose that foundation into crash-safe, replay-safe paid bandwidth and storage product flows with outage and restart recovery. Mint trust and cross-mint settlement remain explicit policy. |
-| Iris Chat | Native 0.1.36 uses the FIPS 0.4 stack, shared decentralized pub/sub, and paged device synchronization. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
-| Nostr VPN | Its shared FIPS/pub-sub integration preserves explicit application-owned UDP roster links and standalone operation. | Test roster churn concurrently with other local products. Do not delegate VPN routes or roster policy to a same-host process. |
-| Iris Drive | Exact consumer commit `3f6726938d08784a21a4cab7e5181b1334755c1c` pins the released adaptive Hashtree/FIPS tuple and keeps its process alive for bounded recovery after a transient fetch failure. The product gate proves provider death and replacement, standalone remote retrieval, and preservation of Drive-owned UDP links. | Keep the released-product gate in the cross-platform matrix and extend it to larger multi-frame trees under sustained churn. |
-| Iris Git | Git data and mutable repository roots already use Hashtree and Nostr. | Treat deeper FIPS discovery and paid repository storage as product integrations, not reasons to fork Hashtree transport or Git object semantics. |
+| Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. The stack process gate uses its real loopback CDK mints and SQLite wallets to prove offline failure, payer death/replacement, exact-token recovery, second-receiver rejection, receiver-ACK completion, and conservation. | Bind the generic recovery path to authenticated paid bandwidth and storage effects. Mint trust and cross-mint settlement remain explicit policy. |
+| Iris Chat | Native 0.1.39 uses the canonical FIPS Nostr relay adapter for roster-authorized device links, shared decentralized pub/sub, paged device synchronization, and optional same-host Hashtree reads. The released Stack fixture calls its production attachment reader. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
+| Nostr VPN | Source tag 4.0.95 at `4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3` has a canonical two-process Docker gate: explicit application-owned UDP roster links carry bidirectional traffic while a signed kind-37196 event crosses shared TCP/FIPS pubsub. Iris Stack pins and delegates to that owner test. | The VPN gate and Chat/Drive/Hashtree gate are separate process scenarios; test their simultaneous churn later. Do not delegate VPN routes or roster policy to a same-host process. |
+| Iris Drive | Hashtree full-history commit `71c00fbfbb18aaa0f365d71e9e2e6785a28ff35e` and byte-identical GitHub snapshot `e48648893b5b38fbafabf6fac0e797bbeb00fc94` pin the adaptive Hashtree/FIPS tuple. The product and Stack gates prove exact roster ACLs, relay-only WebRTC bootstrap, provider death and replacement, standalone retrieval, and preservation of Drive-owned outbound links. | Keep the released-product gate in the cross-platform matrix and extend it to larger multi-frame trees under sustained churn. |
+| Iris Git | Web release 0.1.4 uses Hashtree roots plus an exact-provider FIPS bridge and a real registry CLI/browser process gate. | Treat paid repository storage as a product integration, not a reason to fork Hashtree transport or Git object semantics. |
 
 Versions identify the verified native release boundary on the stated date; the
 repository sources and package registries remain the authority for later
@@ -91,20 +93,27 @@ versions.
   `fd805bf7990f441969502703261c4710672f6fd974f2b681ec68e47700a73c5b`;
   the published `fips-endpoint` 0.4.5 checksum is
   `82f5e764d0e04a508b647680ed008a32f89a231ec8a826772c83c21edd441e4e`.
+- FIPS TypeScript `runtime-v0.0.26` is commit
+  `7295a1243ec1d9ea48cf713eb7594e6f365850dc`: core 0.0.26, browser
+  0.0.8, WebRTC 0.0.42, Ethernet 0.0.25, and memory 0.0.6. Its full
+  native-0.4.5 Chromium matrix passed 16/16 and the sequential replacement
+  path passed another 5/5 repetitions.
 - Hashtree `v0.2.93` is commit
   `f0c8ebb89b2b7f75bf9460fb7486b99cf295b2f6`. Published checksums are
   `574476b1fe122bddc7783ba0346dca42ec673a241128b0edf9e38166c1bb800f`
   for core 0.2.86,
   `0b1c1b6ec24b5e1e294f8fe934e5f7b6455a207e5bd1777efc652f51b4bee49a`
-  for LMDB 0.2.84, and
+  for LMDB 0.2.84,
+  `20907d2e8892fac6562d535b01f41eaa74964a9ea31e66c9674f74e035bf2580`
+  for FIPS transport 0.4.5, and
   `2a6f2540246a6663672a1ad841d1cd76d72e84bf6ede73a8eaea821cf33cfcbc`
   for CLI 0.2.93.
-- The matching TypeScript release is commit
-  `268938c8fe0d35fe4f8fcb3882399291be448897`, tagged `runtime-v0.0.24`:
-  core 0.0.24, browser 0.0.6, WebRTC 0.0.40, Ethernet 0.0.23, and memory
-  0.0.4. All TypeScript unit tests and the unchanged 14-case Playwright suite
-  passed against native commit `5af4f0d02108dcca7b967934230aa6a69abc95fa`;
-  a clean remote-tarball import also passed.
+- Iris Chat source commit
+  `6514f424fc16b0d435a22a98081fc4569c15ad2a` released `iris-chat`
+  0.1.39 with checksum
+  `abace4c0bcb00ff946e8501066a4abd083d08963e8e17bcc7c7bd4647f95cb54`.
+  Its registry package, all-target/all-feature tests, strict Clippy, and real
+  roster-authorized relay process test passed.
 - `nostr-identity` 0.4.0 was released from the social-graph repository at
   commit `d8faabd1bf865f4cf95c9d56eddf99de31436862`; its published crate
   checksum is
@@ -115,8 +124,16 @@ versions.
   `c339af6a3c7a748230e980df1e89c4199532b33222d3c47e0cf148ab4d15498f`;
   the published `cashu-credit` 0.3.0 checksum is
   `c35743015747540d9c912284f10ccf89c40ded00c51fd3710c08c60700c71339`.
-  This proves the reusable real-mint foundation, not the still-pending paid
-  Iris product failure/replay/resumption gate.
+  The `cashu_payment_product` process gate consumes those registry artifacts;
+  it proves the generic service-payment failure/replay/resumption boundary, not
+  a paid Iris product meter.
+- Nostr VPN source tag 4.0.95 at
+  `4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3` owns
+  `scripts/e2e-connect-docker.sh`. Its two real processes preserve explicit
+  UDP roster traffic in both directions while delivering a signed kind-37196
+  paid-exit event through the shared TCP/FIPS pubsub service. Iris Stack's
+  `scripts/vpn-product-lab.sh` fetches that exact snapshot and invokes the
+  owner harness without copying its protocol or topology.
 
 ## Repository organization
 
@@ -183,15 +200,19 @@ code. Similar cleanup in products is valuable when it deletes a private
 transport, but a tiny common frame codec alone is not automatically a
 simplification: if the shared package plus language parity adds more code than
 the consumers remove, wait for stronger semantic convergence or a third user.
+The remaining CLI `DataRequest` path and `webrtc_stub` consolidation are
+explicitly deferred to the Hashtree repository until equivalent owner-level
+coverage permits deletion; Iris Stack must not grow replacement shims for
+either.
 
 ## Priority test backlog
 
-1. Run a released-artifact lab with Iris Chat, Iris Drive, and Nostr VPN at the
-   same time. Kill and replace local providers while every product retains its
-   own explicit outbound connectivity.
-2. Run paid FIPS forwarding and paid Hashtree storage against a real local
-   Cashu mint. Inject rejection, timeout, duplicate receipt, crash, restart,
-   and eventual settlement.
+1. Add Nostr VPN to the released Chat/Drive/Hashtree composition. Kill and
+   replace local providers while every product retains its own explicit
+   outbound connectivity.
+2. Bind paid FIPS forwarding and paid Hashtree storage to the verified generic
+   Cashu recovery gate. Inject product-effect rejection, timeout, duplicate
+   receipt, crash, restart, and eventual receiver acknowledgement.
 3. Enforce the same native/TypeScript fixtures in owner-repository release
    gates, including browser constraints where native loopback UDP is not
    available.

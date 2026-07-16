@@ -87,6 +87,9 @@ gives each node a self-generated public-key address and authenticated, encrypted
 datagrams. Peer links can use UDP, TCP, Ethernet, Tor, BLE, WebRTC, or other
 carriers, and several transports can participate in one routed mesh.
 
+Its identity is the same public-key type and format as a Nostr public key, so
+one key can identify both a FIPS node and the author of Nostr events.
+
 Applications address a FIPS identity while the node handles peer discovery,
 path selection, forwarding, admission, and link health. An IPv6 adapter lets
 existing IP software reach the same identities; native applications use FIPS

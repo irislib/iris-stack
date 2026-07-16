@@ -1,5 +1,12 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +17,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const defaultWorkerCompatibilityDate = '2026-07-15';
 const wranglerVersion = '4';
+const requiredHtreeVersion = '0.2.93';
 
 export const releaseProfile = {
   appName: 'stack.iris.to',
@@ -153,6 +161,12 @@ export function createReleasePlan(options) {
   const distDir = path.join(repoRoot, releaseProfile.distDir);
   const steps = [
     {
+      id: 'verify-htree',
+      label: `Verify htree ${requiredHtreeVersion}`,
+      command: resolveHtreeCommand('--version'),
+      cwd: repoRoot,
+    },
+    {
       id: 'build',
       label: `Build ${releaseProfile.appName}`,
       command: releaseProfile.buildCommand,
@@ -191,6 +205,7 @@ function defaultRunner(step) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: step.cwd,
+      env: step.env ? { ...process.env, ...step.env } : undefined,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -224,6 +239,53 @@ function assertStepSucceeded(step, result) {
   }
 }
 
+function assertHtreeVersion(result) {
+  const output = `${result.stdout}\n${result.stderr}`;
+  const escaped = requiredHtreeVersion.replaceAll('.', '\\.');
+  if (!new RegExp(`^(?:htree|hashtree-cli) ${escaped}$`, 'm').test(output)) {
+    throw new Error(
+      `Site publication requires htree ${requiredHtreeVersion}; received ${output.trim() || 'no version output'}`,
+    );
+  }
+}
+
+function treeEntries(root, relative = '') {
+  const directory = path.join(root, relative);
+  return readdirSync(directory, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const entryRelative = path.join(relative, entry.name);
+      if (entry.isDirectory()) {
+        return [`directory:${entryRelative}`, ...treeEntries(root, entryRelative)];
+      }
+      if (entry.isFile()) {
+        return [`file:${entryRelative}`];
+      }
+      throw new Error(`Published tree contains unsupported entry: ${entryRelative}`);
+    });
+}
+
+export function assertTreesByteEqual(expectedRoot, actualRoot) {
+  const expectedEntries = treeEntries(expectedRoot);
+  const actualEntries = treeEntries(actualRoot);
+  if (expectedEntries.join('\n') !== actualEntries.join('\n')) {
+    throw new Error('Fresh Hashtree retrieval does not contain the published dist file tree');
+  }
+  for (const entry of expectedEntries) {
+    if (!entry.startsWith('file:')) {
+      continue;
+    }
+    const relative = entry.slice('file:'.length);
+    if (
+      !readFileSync(path.join(expectedRoot, relative)).equals(
+        readFileSync(path.join(actualRoot, relative)),
+      )
+    ) {
+      throw new Error(`Fresh Hashtree retrieval differs from dist: ${relative}`);
+    }
+  }
+}
+
 function isReleaseStep(step) {
   return step.id === 'publish' || step.id === 'deploy';
 }
@@ -254,6 +316,9 @@ export async function runRelease(options, runner = defaultRunner, hooks = {}) {
   for (const step of prereleaseSteps) {
     const result = await runner(step);
     assertStepSucceeded(step, result);
+    if (step.id === 'verify-htree') {
+      assertHtreeVersion(result);
+    }
     if (step.id === 'build' && !buildOutputExists(plan.distDir)) {
       throw new Error(`Build output directory not found: ${plan.distDir}`);
     }
@@ -275,10 +340,37 @@ export async function runRelease(options, runner = defaultRunner, hooks = {}) {
     }
   }
 
+  const publish = parsePublishOutput(publishOutput);
+  const verificationRoot = mkdtempSync(path.join(tmpdir(), 'iris-stack-site-verify-'));
+  const verificationData = path.join(verificationRoot, 'data');
+  const verificationOutput = path.join(verificationRoot, 'retrieved');
+  const verificationStep = {
+    id: 'verify-publish',
+    label: `Verify published Hashtree tree ${publish.nhash}`,
+    command: resolveHtreeCommand(
+      '--data-dir',
+      verificationData,
+      'get',
+      publish.nhash,
+      '--output',
+      verificationOutput,
+    ),
+    cwd: verificationRoot,
+    env: { HTREE_CONFIG_DIR: path.join(verificationRoot, 'config') },
+  };
+  try {
+    const result = await runner(verificationStep);
+    assertStepSucceeded(verificationStep, result);
+    (hooks.verifyRetrievedTree ?? assertTreesByteEqual)(plan.distDir, verificationOutput);
+  } finally {
+    rmSync(verificationRoot, { recursive: true, force: true });
+  }
+
   return {
     profile: plan.profile,
     treeName: options.treeName,
-    publish: parsePublishOutput(publishOutput),
+    publish,
+    verified: true,
     workerName: options.skipCloudflare ? null : options.workerName,
     routes: options.skipCloudflare ? [] : options.routes ?? [],
     domains: options.skipCloudflare ? [] : options.domains ?? [],
@@ -304,8 +396,6 @@ Environment:
   ${releaseProfile.workerNameEnv}   Worker name override
   CF_WORKER_COMPATIBILITY_DATE   Worker compatibility date override
   HTREE_BIN   explicit htree binary
-  HASHTREE_REPO_ROOT   explicit Hashtree checkout containing rust/Cargo.toml
-  HASHTREE_RUST_DIR   explicit Hashtree Rust workspace
 `;
 }
 

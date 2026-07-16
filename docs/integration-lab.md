@@ -62,8 +62,9 @@ not a replacement for Hashtree HTL routing.
 ## Released-product gate
 
 The substrate matrix above is fast and deterministic, but it is not sufficient
-evidence that a product composes the released pieces correctly. The explicit
-`drive_htree_product` gate starts these real processes:
+evidence that products compose the released pieces correctly. Two explicit
+released-product gates cover the combined Chat/Drive topology and Drive's
+provider-replacement lifecycle.
 
 The checked-in Rust lockfile pins the substrate gate to the published
 `fips-core` 0.4.5 and `fips-tcp` 0.2.0 artifacts. The released `htree`
@@ -71,53 +72,140 @@ executable supplies `hashtree-fips-transport` 0.4.5. Product fixtures and the
 `htree` executable are supplied as exact coordinates at run time.
 
 ```text
-remote htree (released CLI, owns UDP FIPS link)
-              ^
-              | Hashtree HTL over FIPS TCP
-              |
-local htree provider <== ordinary loopback FIPS ==> Iris Drive fixture
-              ^                                      |
-              |                                      |
-              +---------- own UDP FIPS links --------+
+HTL-only remote htree <== provider-owned UDP FIPS ==> local htree provider
+                                                       /              \
+                                        loopback FIPS /                \ loopback FIPS
+                                                     /                  \
+                                            Iris Chat fixture      Iris Drive fixture
+                                                     |                  |
+                                         configured HTTP source     app-owned UDP FIPS
+                                                     |                  |
+                                                     +-- standalone htree
 ```
 
-The fixture lives in the Iris Drive repository and only controls its production
-`FipsBlockSync`; it contains no discovery, transport, blob, or routing
-implementation. The lab gives every process its own identity, storage, UDP
-port, and isolated loopback rendezvous address. Hashtree LAN discovery is
-disabled so a passing run cannot silently use a host-LAN path. Hashtree keeps
-its generic overlay scope while Drive keeps its profile scope; authenticated
-same-host capability discovery is intentionally cross-product.
+The feature-gated fixtures live with Iris Chat and Iris Drive. They invoke
+Chat's production attachment reader and Drive's production `FipsBlockSync`;
+neither fixture implements discovery, transport, blob framing, or routing. The
+lab gives every process its own identity, storage, UDP port, and isolated
+loopback rendezvous address. Hashtree LAN discovery is disabled so a passing
+run cannot silently use a host-LAN path.
 
-The scenario seeds one provider-only tree and one standalone-remote-only tree.
-Drive retrieves the first through the already-running local provider. The lab
-then kills that provider and retrieves the second tree through Drive's
-pre-existing, application-owned UDP route. It verifies the first tree is
-durable in the dead provider's store and the second was not supplied by that
-provider. It then starts a distinct local replacement and retrieves a
-replacement-only tree. The Drive-owned UDP route remains authenticated and
-connected through every phase.
+The scenario first puts one blob only in the local provider and proves that
+both products retrieve it through authenticated same-host discovery. A second
+blob exists only at the provider's one configured Hashtree peer. Drive sends
+`BLOB_DEFAULT_HTL` to the same-host provider; the provider performs the one
+Hashtree mesh forwarding hop with the budget decremented from 10 to 9, verifies
+the reply, and caches it. The lab proves the standalone remote never held that
+blob and that the provider cache can serve it afterward. The exact wire-budget
+invariant remains owned by Hashtree's
+`test_blob_request_forwarding_decrements_htl_exactly_once` test.
 
-This is intentionally one product slice. Iris Drive still owns its product
-authorization and startup tests; Hashtree still owns HTL, codec, failure, and
-resource-bound tests. Later Chat, VPN, and Git scenarios should reuse the same
-generic process harness rather than add protocol simulators here.
+The remaining remote-only blobs exist only at the apps' standalone remote. A
+provider search that returns `NoResult` remains route-local: Chat falls through
+to its configured HTTP source while Drive keeps using its pre-existing,
+application-owned UDP route. After a forced provider death, both products
+retrieve another blob through those same standalone paths. The lab verifies
+the dead provider never acquired either fallback blob, Drive's UDP route stays
+authenticated and connected throughout, and Chat remains alive. Nostr pub/sub
+is not involved in blob routing.
+
+The separate Drive lifecycle scenario then starts a distinct local provider,
+kills it, and replaces it with another process and identity. It proves old and
+replacement-only blobs remain available through the correct stores while
+Drive's application-owned UDP route remains authenticated throughout.
+
+## Cashu service-payment recovery gate
+
+The ordinary test suite also composes the published `cashu-service` 0.3.1 and
+`cashu-credit` 0.3.0 artifacts through a real loopback CDK mint API and SQLite
+wallets. Its isolated payment network simulates only the Lightning backend; CDK
+still owns quotes, proofs, swaps, melts, bearer-token transfer, and spent-proof
+checks. Building CDK requires a `protoc` executable; the CI workflow installs
+the operating system's protobuf compiler explicitly.
+
+The lab starts a withdrawable source mint and a closed-loop provider mint, then
+runs payer, replacement-payer, provider, and replay-receiver roles as separate
+operating-system processes. It proves this bounded sequence:
+
+1. A persisted useful-service receipt authorizes one 32 sat payout with a one
+   sat fee ceiling from 64 funded sats.
+2. Taking the destination mint offline makes the attempt fail without moving
+   value or erasing the pending authorization.
+3. After the mint returns, the payer completes the CDK transfer and durably
+   journals one exact bearer token, then is killed before receiver
+   acknowledgement.
+4. A replacement process resumes the same expired authorization and CDK saga,
+   returning the same quote IDs and replaying the same token journal rather
+   than issuing another payment.
+5. The provider receives 32 sats; a second wallet's replay of the same token is
+   rejected by the real mint. Only then does the replacement payer complete
+   the credit-account settlement.
+6. Final accounting remains conserved: 31 sats at the source mint, 32 at the
+   destination mint, and one sat in the fee sink from 64 externally funded
+   sats.
+
+This gate verifies generic useful-service settlement recovery. It does not
+claim integration with paid FIPS forwarding, Hashtree storage, or VPN traffic
+metering; each product must still bind its authenticated service effect to the
+receipt and receiver acknowledgement.
+
+## Nostr VPN released-product gate
+
+The VPN product gate is a thin launcher for Nostr VPN's owner-repository
+process test. By default it fetches exact public commit
+[`4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3`](https://github.com/mmalmi/nostr-vpn/commit/4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3)
+into a temporary checkout and runs its canonical
+`scripts/e2e-connect-docker.sh`. Iris Stack does not copy the VPN topology,
+commands, protocol, or assertions.
+
+That owner harness starts two real `nvpn` processes with separate identities
+and explicit UDP roster endpoints. It proves that both application-owned links
+carry traffic in both directions while the same processes deliver a signed
+kind-37196 paid-exit event through the shared TCP/FIPS pubsub service. The gate
+does not introduce local route delegation, shared egress, or a mandatory
+same-host process.
+
+The gate builds and runs privileged network containers. Run the pinned
+coordinate directly with:
+
+```sh
+scripts/vpn-product-lab.sh
+```
+
+Pre-release candidates can be selected without editing this repository:
+
+```sh
+IRIS_STACK_NVPN_REV=<exact-commit> \
+IRIS_STACK_NVPN_GIT_URL=<public-git-url> \
+scripts/vpn-product-lab.sh
+```
+
+`.github/workflows/vpn-product-lab.yml` remains manually dispatchable and
+reusable. It also runs on pushes and pull requests that change the workflow or
+its launcher, so unrelated source and documentation changes do not incur the
+Docker gate's cost.
 
 ## Run the lab
 
 ```sh
-cargo test --locked
+cargo test --locked --all-targets
+cargo test --locked --test cashu_payment_product -- --nocapture
 cargo clippy --locked --all-targets -- -D warnings
 cargo fmt --check
 ```
 
 The released-product gate is ignored by ordinary `cargo test` because it
-installs and runs external artifacts. Run it with an exact public Iris Drive
-commit; Hashtree is installed from the exact registry version unless a binary
-is supplied explicitly:
+installs and runs external artifacts. The script pins Iris Drive commit
+`e48648893b5b38fbafabf6fac0e797bbeb00fc94`, `hashtree-cli` 0.2.93, and the
+published `iris-chat` 0.1.39 crate by default. Run the lab directly, or
+override an exact coordinate explicitly:
 
 ```sh
+scripts/product-lab.sh
+
 IRIS_STACK_DRIVE_REV=<exact-commit> \
+IRIS_STACK_HTREE_VERSION=<exact-version> \
+IRIS_STACK_CHAT_VERSION=<exact-version> \
 scripts/product-lab.sh
 ```
 
@@ -127,9 +215,28 @@ patching this repository or its lockfile:
 ```sh
 IRIS_STACK_HTREE_BIN=/path/to/htree \
 IRIS_STACK_DRIVE_FIXTURE_BIN=/path/to/iris-drive-stack-fixture \
+IRIS_STACK_CHAT_FIXTURE_BIN=/path/to/iris-chat-stack-fixture \
 scripts/product-lab.sh
 ```
 
-`.github/workflows/product-lab.yml` exposes the same gate as a manually
-dispatched or reusable workflow. Both inputs are exact artifact coordinates;
-the workflow has no checkout-relative references to sibling repositories.
+`.github/workflows/product-lab.yml` runs the Cashu and Chat/Drive/Hashtree gates
+on relevant pushes and pull requests, and remains manually dispatchable and
+reusable. Its optional product inputs override the script's exact artifact
+coordinates; the workflow has no checkout-relative references to sibling
+repositories. The generic native workflow runs `cargo test --locked
+--all-targets`, including `same_host_processes`, on every push and pull request.
+
+## Site release verification
+
+`pnpm run release:site` accepts only `hashtree-cli` 0.2.93, either from `PATH`
+or from an explicit executable `HTREE_BIN`. After the portable build and tests,
+Hashtree publication and Cloudflare deployment run independently. Once the
+publisher emits an immutable `nhash`, the release script uses a fresh
+`HTREE_CONFIG_DIR` and data directory to retrieve it and compares every path
+and file byte with `dist`.
+
+The two publication targets are not an atomic transaction: one can have
+changed when the other fails. The command is nevertheless fail-closed. A bad
+exit status, missing publication reference, fresh-store retrieval failure, or
+byte mismatch prevents a success result and must be investigated before the
+release is reported complete.

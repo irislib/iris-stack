@@ -1,13 +1,12 @@
 use std::fs;
 use std::net::{TcpListener, UdpSocket};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use anyhow::{Context, Result, bail, ensure};
+use hashtree_core::{Cid, NHashData, nhash_encode_full, sha256, to_hex};
 use serde_json::Value;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 use tokio::process::Command;
+use tokio::time::{Duration, timeout};
 
 use crate::support::process::ManagedProcess;
 pub use crate::support::process::TestRoot;
@@ -210,6 +209,31 @@ pub async fn add_blob(
         .context("htree add did not print a hash")
 }
 
+pub fn nhash_for_cid(cid: &str) -> Result<String> {
+    let cid = Cid::parse(cid).context("parse Hashtree CID")?;
+    nhash_encode_full(&NHashData {
+        hash: cid.hash,
+        decrypt_key: cid.key,
+    })
+    .context("encode Hashtree nhash")
+}
+
+pub fn payload_sha256(bytes: &[u8]) -> String {
+    to_hex(&sha256(bytes))
+}
+
+pub fn write_hashtree_read_config(config_dir: &Path, read_server: &str) -> Result<()> {
+    fs::create_dir_all(config_dir).context("create Hashtree client config directory")?;
+    fs::write(
+        config_dir.join("config.toml"),
+        format!(
+            "[server]\nbind_address = \"127.0.0.1:1\"\n\n[blossom]\nread_servers = [\"{}\"]\nwrite_servers = []\n",
+            read_server.replace('\\', "\\\\").replace('"', "\\\"")
+        ),
+    )
+    .context("write Hashtree client config")
+}
+
 pub async fn cat_blob(htree_bin: &Path, node: &HtreeNode, cid: &str) -> Result<Vec<u8>> {
     let output = node
         .command(htree_bin)
@@ -235,6 +259,32 @@ pub fn spawn_htree(
     let mut command = node.command(htree_bin);
     command.arg("start").arg("--addr").arg(http_addr);
     ManagedProcess::spawn(label, &mut command)
+}
+
+pub async fn wait_for_htree_fips_peer(http_addr: &str, npub: &str) -> Result<()> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(700))
+        .build()?;
+    let status_url = format!("http://{http_addr}/api/status");
+    timeout(Duration::from_secs(30), async {
+        loop {
+            if let Ok(response) = client.get(&status_url).send().await
+                && let Ok(status) = response.json::<Value>().await
+                && status["fips"]["peer_statuses"]
+                    .as_array()
+                    .is_some_and(|peers| {
+                        peers.iter().any(|peer| {
+                            peer["npub"] == npub && peer["connected"].as_bool() == Some(true)
+                        })
+                    })
+            {
+                return Ok::<_, anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .with_context(|| format!("htree at {http_addr} did not connect to {npub}"))?
 }
 
 pub async fn wait_for_fips_peer_connection(http_addr: &str, npub: &str) -> Result<()> {
@@ -266,22 +316,14 @@ pub fn fips_udp_peer_connected(status: &Value, npub: &str) -> bool {
 }
 
 pub async fn fetch_status(addr: &str) -> Result<Value> {
-    let mut stream = TcpStream::connect(addr).await?;
-    stream
-        .write_all(
-            format!("GET /api/status HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n\r\n")
-                .as_bytes(),
-        )
+    let response = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()?
+        .get(format!("http://{addr}/api/status"))
+        .send()
         .await?;
-    let mut response = Vec::new();
-    stream.read_to_end(&mut response).await?;
-    let split = response
-        .windows(4)
-        .position(|window| window == b"\r\n\r\n")
-        .context("HTTP status response omitted headers")?;
-    let headers = String::from_utf8_lossy(&response[..split]);
-    ensure!(headers.starts_with("HTTP/1.1 200") || headers.starts_with("HTTP/1.0 200"));
-    serde_json::from_slice(&response[split + 4..]).context("decode htree status JSON")
+    ensure!(response.status().is_success());
+    response.json().await.context("decode htree status JSON")
 }
 
 pub fn payload(label: &str, len: usize) -> Vec<u8> {
