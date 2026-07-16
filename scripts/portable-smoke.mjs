@@ -75,7 +75,10 @@ async function startServer(rootDir) {
 }
 
 const { server, url } = await startServer(distDir);
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  args: ['--no-proxy-server'],
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const pageErrors = [];
 const consoleErrors = [];

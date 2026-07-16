@@ -14,7 +14,7 @@ on:
       nvpn_rev:
         description: Exact public Nostr VPN commit
         required: false
-        default: d790b6db6bfaa67718be47e322426c355b76f3ba
+        default: 4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3
         type: string
       nvpn_git_url:
         description: Public Nostr VPN Git source
@@ -26,7 +26,7 @@ on:
       nvpn_rev:
         description: Exact public Nostr VPN commit
         required: false
-        default: d790b6db6bfaa67718be47e322426c355b76f3ba
+        default: 4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3
         type: string
       nvpn_git_url:
         description: Public Nostr VPN Git source
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      IRIS_STACK_NVPN_REV: ${{ inputs.nvpn_rev || 'd790b6db6bfaa67718be47e322426c355b76f3ba' }}
+      IRIS_STACK_NVPN_REV: ${{ inputs.nvpn_rev || '4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3' }}
       IRIS_STACK_NVPN_GIT_URL: ${{ inputs.nvpn_git_url || 'https://github.com/mmalmi/nostr-vpn.git' }}
     steps:
       - uses: actions/checkout@v4

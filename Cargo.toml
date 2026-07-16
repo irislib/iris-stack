@@ -2,7 +2,6 @@
 name = "iris-stack-lab"
 version = "0.1.0"
 edition = "2024"
-license = "0BSD"
 description = "Process-level integration lab for same-host Iris substrate composition"
 homepage = "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-stack"
 repository = "https://github.com/irislib/iris-stack"

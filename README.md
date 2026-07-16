@@ -41,5 +41,3 @@ pnpm dev
 pnpm test
 pnpm build
 ```
-
-License: [0BSD](LICENSE)
