@@ -1,7 +1,6 @@
 use std::fs;
 use std::net::{TcpListener, UdpSocket};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail, ensure};
@@ -11,8 +10,7 @@ use tokio::net::TcpStream;
 use tokio::process::Command;
 
 use crate::support::process::ManagedProcess;
-
-static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+pub use crate::support::process::TestRoot;
 
 pub fn required_binary(name: &str) -> Result<PathBuf> {
     let value = std::env::var_os(name).with_context(|| format!("{name} is not set"))?;
@@ -23,33 +21,6 @@ pub fn required_binary(name: &str) -> Result<PathBuf> {
         path.display()
     );
     Ok(path)
-}
-
-pub struct TestRoot(PathBuf);
-
-impl TestRoot {
-    pub fn new() -> Result<Self> {
-        let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!(
-            "iris-stack-product-{}-{sequence}",
-            std::process::id()
-        ));
-        if path.exists() {
-            fs::remove_dir_all(&path).context("remove stale product-lab directory")?;
-        }
-        fs::create_dir_all(&path).context("create product-lab directory")?;
-        Ok(Self(path))
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for TestRoot {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
 }
 
 pub struct HtreeNode {

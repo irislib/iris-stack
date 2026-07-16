@@ -1,6 +1,22 @@
 name: Released product lab
 
 on:
+  push:
+    paths:
+      - .github/workflows/product-lab.yml
+      - Cargo.lock
+      - Cargo.toml
+      - src/bin/cashu-stack-fixture.rs
+      - tests/cashu_payment_product.rs
+      - tests/support/**
+  pull_request:
+    paths:
+      - .github/workflows/product-lab.yml
+      - Cargo.lock
+      - Cargo.toml
+      - src/bin/cashu-stack-fixture.rs
+      - tests/cashu_payment_product.rs
+      - tests/support/**
   workflow_call:
     inputs:
       drive_rev:
@@ -28,7 +44,21 @@ permissions:
   contents: read
 
 jobs:
+  cashu-service-payment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install CDK protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes protobuf-compiler
+      - name: Run real Cashu failure and recovery gate
+        run: cargo test --locked --test cashu_payment_product -- --nocapture
+
   drive-hashtree:
+    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -37,5 +67,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install CDK protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes protobuf-compiler
       - name: Run released product process gate
         run: scripts/product-lab.sh

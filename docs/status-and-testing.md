@@ -24,11 +24,13 @@ protocol. The architecture stays tractable when it enforces four rules:
 4. A shared abstraction should delete more policy and failure modes than it
    adds; similar-looking code is not enough reason to merge semantics.
 
-The economic loop is less mature than the protocol loop. Cashu service credit,
-receipts, and settlement adapters exist, but paid forwarding and paid storage
-still need released-product simulations with a real local mint, failures,
-replay, restart, and settlement recovery before they should be described as a
-deployed market.
+The economic loop is less mature than the protocol loop. The stack lab
+composes Cashu service credit, receipts, a real local CDK mint, an offline
+failure, payer replacement, exact-token replay, double-spend rejection, and
+settlement recovery across operating-system processes. Paid forwarding and
+paid storage still need product-specific gates that bind an authenticated
+service effect to the receipt and receiver acknowledgement before they should
+be described as a deployed market.
 
 ## Dependency direction
 
@@ -73,7 +75,7 @@ Hashtree HTL or settlement policy.
 | `nostr-pubsub` | Core 0.1.11 and FIPS adapter 0.3.1 share the standard `REQ`/`EVENT`/`CLOSE` service and have simulator, stress, role-blind discovery, and Cashu-incentive gates. | Browser and native consumers must use the shared carrier instead of product-private endpoint namespaces. Offline history remains a storage concern. |
 | Hashtree | Core 0.2.84, FIPS transport 0.4.0, and CLI 0.2.85 use one `BlobRoute` request/reply model. The duplicate raw-datagram FIPS mesh carrier is removed. `hashtree-network` remains the canonical HTL router. | Complete native/TypeScript route parity, then exercise multi-hop HTL, churn, corrupt providers, caching, and paid routes through released artifacts. |
 | Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, exact fact lookup, and the `nostr-identity` 0.4.0 crate exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
-| Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. Its reusable simulation feature starts a real loopback CDK mint with SQLite and covers proof transfer and double-spend rejection. | Compose that foundation into crash-safe, replay-safe paid bandwidth and storage product flows with outage and restart recovery. Mint trust and cross-mint settlement remain explicit policy. |
+| Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. The stack process gate uses its real loopback CDK mints and SQLite wallets to prove offline failure, payer death/replacement, exact-token recovery, second-receiver rejection, receiver-ACK completion, and conservation. | Bind the generic recovery path to authenticated paid bandwidth and storage effects. Mint trust and cross-mint settlement remain explicit policy. |
 | Iris Chat | Native 0.1.36 uses the FIPS 0.4 stack, shared decentralized pub/sub, and paged device synchronization. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
 | Nostr VPN | Its shared FIPS/pub-sub integration preserves explicit application-owned UDP roster links and standalone operation. | Test roster churn concurrently with other local products. Do not delegate VPN routes or roster policy to a same-host process. |
 | Iris Drive | The canonical storage interface and same-host provider path use Hashtree blob routes, while the product retains standalone storage and outbound links. | Finish the native carrier release gate and repeatedly prove large multi-frame retrieval, provider death/replacement, and fallback through the product-owned route. |
@@ -110,8 +112,9 @@ versions.
   `c339af6a3c7a748230e980df1e89c4199532b33222d3c47e0cf148ab4d15498f`;
   the published `cashu-credit` 0.3.0 checksum is
   `c35743015747540d9c912284f10ccf89c40ded00c51fd3710c08c60700c71339`.
-  This proves the reusable real-mint foundation, not the still-pending paid
-  Iris product failure/replay/resumption gate.
+  The `cashu_payment_product` process gate consumes those registry artifacts;
+  it proves the generic service-payment failure/replay/resumption boundary, not
+  a paid Iris product meter.
 
 ## Repository organization
 
@@ -184,9 +187,9 @@ the consumers remove, wait for stronger semantic convergence or a third user.
 1. Run a released-artifact lab with Iris Chat, Iris Drive, and Nostr VPN at the
    same time. Kill and replace local providers while every product retains its
    own explicit outbound connectivity.
-2. Run paid FIPS forwarding and paid Hashtree storage against a real local
-   Cashu mint. Inject rejection, timeout, duplicate receipt, crash, restart,
-   and eventual settlement.
+2. Bind paid FIPS forwarding and paid Hashtree storage to the verified generic
+   Cashu recovery gate. Inject product-effect rejection, timeout, duplicate
+   receipt, crash, restart, and eventual receiver acknowledgement.
 3. Enforce the same native/TypeScript fixtures in owner-repository release
    gates, including browser constraints where native loopback UDP is not
    available.

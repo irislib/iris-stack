@@ -90,10 +90,46 @@ authorization and startup tests; Hashtree still owns HTL, codec, failure, and
 resource-bound tests. Later Chat, VPN, and Git scenarios should reuse the same
 generic process harness rather than add protocol simulators here.
 
+## Cashu service-payment recovery gate
+
+The ordinary test suite also composes the published `cashu-service` 0.3.1 and
+`cashu-credit` 0.3.0 artifacts through a real loopback CDK mint API and SQLite
+wallets. Its isolated payment network simulates only the Lightning backend; CDK
+still owns quotes, proofs, swaps, melts, bearer-token transfer, and spent-proof
+checks. Building CDK requires a `protoc` executable; the CI workflow installs
+the operating system's protobuf compiler explicitly.
+
+The lab starts a withdrawable source mint and a closed-loop provider mint, then
+runs payer, replacement-payer, provider, and replay-receiver roles as separate
+operating-system processes. It proves this bounded sequence:
+
+1. A persisted useful-service receipt authorizes one 32 sat payout with a one
+   sat fee ceiling from 64 funded sats.
+2. Taking the destination mint offline makes the attempt fail without moving
+   value or erasing the pending authorization.
+3. After the mint returns, the payer completes the CDK transfer and durably
+   journals one exact bearer token, then is killed before receiver
+   acknowledgement.
+4. A replacement process resumes the same expired authorization and CDK saga,
+   returning the same quote IDs and replaying the same token journal rather
+   than issuing another payment.
+5. The provider receives 32 sats; a second wallet's replay of the same token is
+   rejected by the real mint. Only then does the replacement payer complete
+   the credit-account settlement.
+6. Final accounting remains conserved: 31 sats at the source mint, 32 at the
+   destination mint, and one sat in the fee sink from 64 externally funded
+   sats.
+
+This gate verifies generic useful-service settlement recovery. It does not
+claim integration with paid FIPS forwarding, Hashtree storage, or VPN traffic
+metering; each product must still bind its authenticated service effect to the
+receipt and receiver acknowledgement.
+
 ## Run the lab
 
 ```sh
 cargo test --locked
+cargo test --locked --test cashu_payment_product -- --nocapture
 cargo clippy --locked --all-targets -- -D warnings
 cargo fmt --check
 ```
@@ -120,7 +156,8 @@ IRIS_STACK_DRIVE_FIXTURE_BIN=/path/to/iris-drive-stack-fixture \
 scripts/product-lab.sh
 ```
 
-`.github/workflows/product-lab.yml` exposes the same gate as a manually
-dispatched or reusable workflow. Its optional inputs override the script's
-exact artifact coordinates; the workflow has no checkout-relative references
-to sibling repositories.
+`.github/workflows/product-lab.yml` runs the Cashu gate on relevant pushes and
+pull requests. It also exposes the Drive/Hashtree gate as a manually dispatched
+or reusable workflow. Its optional product inputs override the script's exact
+artifact coordinates; the workflow has no checkout-relative references to
+sibling repositories.

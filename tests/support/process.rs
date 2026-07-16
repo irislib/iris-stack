@@ -1,4 +1,7 @@
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
@@ -9,6 +12,37 @@ use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
 const WAIT: Duration = Duration::from_secs(45);
+#[allow(dead_code)] // Used by product tests, while each integration crate recompiles this module.
+static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+#[allow(dead_code)] // Used by product tests, while each integration crate recompiles this module.
+pub struct TestRoot(PathBuf);
+
+#[allow(dead_code)] // Used by product tests, while each integration crate recompiles this module.
+impl TestRoot {
+    pub fn new() -> Result<Self> {
+        let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "iris-stack-product-{}-{sequence}",
+            std::process::id()
+        ));
+        if path.exists() {
+            fs::remove_dir_all(&path).context("remove stale product-lab directory")?;
+        }
+        fs::create_dir_all(&path).context("create product-lab directory")?;
+        Ok(Self(path))
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for TestRoot {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
 
 #[derive(Debug)]
 pub struct CapturedProcess {
@@ -51,6 +85,7 @@ impl ManagedProcess {
         })
     }
 
+    #[allow(dead_code)] // Used by other process-test crates sharing this helper.
     pub async fn line_containing(&mut self, marker: &str) -> Result<String> {
         let label = self.label.clone();
         timeout(WAIT, async {
