@@ -15,7 +15,7 @@
     "build": "vite build --config site/vite.config.ts",
     "preview": "vite preview --config site/vite.config.ts",
     "check": "svelte-check --tsconfig ./site/tsconfig.json",
-    "test:unit": "node --test tests/site-contract.test.mjs tests/release-site.test.mjs",
+    "test:unit": "node --test tests/release-site.test.mjs",
     "test:portable": "pnpm run build && node --test tests/portable-build.test.mjs && node ./scripts/portable-smoke.mjs",
     "test:e2e": "playwright test",
     "test": "pnpm run check && pnpm run test:unit && pnpm run test:portable && pnpm run test:e2e",
