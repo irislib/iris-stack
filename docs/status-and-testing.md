@@ -143,13 +143,17 @@ different enough that a monorepo would hide rather than remove coupling.
 
 | Repository | Owns | Must not own |
 | --- | --- | --- |
+| `nostr-protocol/nips` | Portable public-key identity and the signed-event format | Application authorization, event distribution, social interpretation, or transport |
 | `fips` / `fips-ts` | Public-key-addressed links, Noise authentication, carriers, routing, discovery, admission, authenticated capability roster | Reliable application streams, blob HTL, event subscription policy, product egress policy |
 | `fips-tcp` | Reliable ordered byte streams and their Rust/TypeScript wire contract | Product record schemas or application commit semantics |
 | `nostr-pubsub` | Nostr subscription/event protocol, source policy, deduplication, carrier adapters | Blob transfer, durable mailbox/history, product-specific event formats |
-| `hashtree` | Blob/tree formats, verification, cache policy, `BlobRoute`, HTL forwarding, content indexes, Git/release data, paid route wrappers | FIPS link routing, Nostr event distribution, product UI |
+| `nostr-double-ratchet` | Private-message ratchet cryptography | General event distribution, product conversation state, or UI |
+| `hashtree` | Blob/tree formats, verification, cache policy, `BlobRoute`, HTL forwarding, Git/release data, and paid route wrappers | FIPS link routing, Nostr event distribution, product UI |
+| `@hashtree/index` / `@hashtree/collection` | Immutable B-tree indexes, canonical records, derived search roots, and collection manifests | Source completeness, global query policy, or mutable database authority |
 | `nostr-social-graph` | Signed fact interpretation, graph traversal, contextual names, reputation and policy inputs | A global name registry or global trust score |
 | `cashu-service` | Credit, receipts, transfer and settlement primitives | Product pricing, access policy, or claims of globally trusted mints |
 | Product repositories | Startup, authorization, durable product effects, user policy, explicit peers and outbound links | Copies of capability carriers, discovery protocols, or retry state machines |
+| `iris-kit` | Shared web integration and UI packages | Capability wire contracts or product-owned policy |
 | `iris-stack` | Durable public architecture, machine-readable ownership map, and black-box process/released-artifact lab | Another implementation of FIPS, TCP/FIPS, pub/sub, Hashtree, or product logic |
 
 `iris-stack-lab` therefore belongs in this repository. It is a consumer-only

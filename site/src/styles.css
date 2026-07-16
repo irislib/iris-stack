@@ -303,9 +303,8 @@ a {
 }
 
 .markdown table {
-  display: block;
+  display: table;
   width: 100%;
-  overflow-x: auto;
   margin: 24px 0 32px;
   border-collapse: collapse;
 }

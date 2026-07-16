@@ -19,25 +19,54 @@ or cloud vendor as an authority.
 
 ## 1. Capability layers
 
-The order below runs from the network-facing substrate toward applications.
-Nostr identity and Cashu settlement cross every layer.
+The numbered order below runs from the network-facing substrate toward
+applications. Nostr identity and payments cross every layer.
 
 | Position | Component | Role | Replaces |
 | --- | --- | --- | --- |
-| [Identity plane](#nostr-identity-and-signed-facts) | [Nostr](https://github.com/nostr-protocol/nips) | Portable public-key identity and signed event format | Platform account, email address, phone number, domain name, or TLS certificate as identity |
+| [Identity](#nostr-identity-and-signed-events) | [Nostr](https://github.com/nostr-protocol/nips) | Portable public-key identity and signed event format | Platform account, email address, phone number, domain name, or TLS certificate as identity |
 | [1 · datagrams](#fips-authenticated-datagrams) | [FIPS](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips) | Authenticated datagrams addressed by self-generated public keys, encrypted links, carrier adapters, discovery, routing, and admission | Hierarchically allocated or location-dependent addressing (domain names and IP addresses), plus transport-specific authentication and routing |
 | [2 · streams](#reliable-streams-with-fips-tcp) | [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp) | Reliable ordered delivery over FIPS | TCP streams bound to IP endpoints |
 | [3a · publish-subscribe](#nostr-pubsub-publish-subscribe) | [`nostr-pubsub`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub) | Subscriptions, signed-event exchange, deduplication, source selection, and real-time policy | Central message broker |
-| [3b · private messaging](#asynchronous-private-messaging-with-nostr-double-ratchet) | [`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet) | Forward-secure 1:1 sessions, sender-key groups, and asynchronous encrypted Nostr events | Always-online encrypted connection or platform messaging service |
+| [3b · private messaging](#nostr-double-ratchet) | [`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet) | Forward-secure 1:1 sessions, sender-key groups, and asynchronous encrypted Nostr events | Always-online encrypted connection or platform messaging service |
 | [3c · content](#hashtree-blobs-and-routes) | [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree) | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
 | [4a · indexes](#hashtree-indexes-for-large-datasets) | [`@hashtree/index`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-index) and [`@hashtree/collection`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-collection) | Immutable B-trees, canonical records, derived search roots, collection manifests, and local or federated reads | Central database, search service, relay index, or platform API |
 | [4b · social context](#social-graph-as-local-policy) | [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph) | Graph traversal, fact events, viewer-local naming, moderation, reputation, and resource-policy inputs | Central profile, ACL, moderation, or reputation database |
-| [Settlement plane](#cashu-service-layer) | [Cashu service layer](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service) | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
+| [Payments](#payments) | [`cashu-service`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service) | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
 | [5 · applications](#products) | Products | User experience, authorization, durable state, economics, and explicit outbound peers | Single platform as identity, policy, and egress authority |
 
-## 2. Connectivity
+## 2. Identity
 
-### 2.1 FIPS authenticated datagrams
+### 2.1 Nostr identity and signed events
+
+[Nostr](https://github.com/nostr-protocol/nips) keys provide the portable
+identity shared by FIPS nodes and application events. Signed events carry
+profiles, follows, mutes, messages, capability
+adverts, ratings, release roots, and application-defined facts. Signatures bind
+an event to its author; each application decides what that author may do.
+
+### 2.2 Signed fact events
+
+Fact events give application data a reusable subject–predicate–object shape. A
+durable subject can represent a person, organization, place, review, or other
+entity; predicates such as `name`, `controls`, `same_as`, or `member_of`
+describe it; and objects supply names, keys, or related entities. Apps can
+update or dispute claims and assemble their own trusted view without defining a
+new event type for every data model. The signature proves who made a claim, not
+that the claim is universally true.
+
+The [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
+identity tools add UUID-based rosters and facts that preserve an identity across
+keys and devices.
+
+| Example app | Usage |
+| --- | --- |
+| [Iris Chat](https://chat.iris.to/) | Uses Nostr identities and owner-signed AppKeys roster fact snapshots to authorize and synchronize linked devices. |
+| [Iris Contacts](https://contacts.iris.to/) | Keeps one UUID subject for a contact while `name`, `controls`, and other signed facts describe names, keys, and relationships that may change. |
+
+## 3. Connectivity
+
+### 3.1 FIPS authenticated datagrams
 
 [FIPS](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips)
 (Free Internetworking Peering System) gives each node a self-generated public-key address and authenticated,
@@ -47,15 +76,15 @@ over Ethernet, Bluetooth LE, UDP, TCP, Tor, WebRTC, a relay, or another medium.
 Several carriers can participate in
 one routed mesh; none is required to be IP-based.
 
-Its identity is the same public-key type and format as a Nostr public key, so
-one key can identify both a FIPS node and the author of Nostr events.
+FIPS uses the same public-key type and format as a Nostr public key, so one key
+can identify both a node and an event author.
 
 Applications address a FIPS identity while the node handles peer discovery,
 path selection, forwarding, admission, and link health. An IPv6 adapter lets
 existing IP software reach the same identities; native applications use FIPS
 service datagrams directly.
 
-### 2.2 Reliable streams with fips-tcp
+### 3.2 Reliable streams with fips-tcp
 
 [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp)
 adds reliable, ordered byte streams above FIPS datagrams. Applications gain
@@ -64,52 +93,62 @@ remote address remains an authenticated FIPS identity. It suits protocols that
 need a continuous connection; event exchange and hash-addressed blobs can use
 their own higher-level delivery models.
 
-## 3. Identity, publish-subscribe, and social context
+| Example app | Usage |
+| --- | --- |
+| [Nostr VPN](https://nostrvpn.org/) | Uses FIPS identities for private mesh peers, allowing carriers to change without changing the identity referenced by routes and access policy. |
+| [Iris Drive](https://getdrive.iris.to/) | Uses `fips-tcp` for reliable multi-frame Hashtree transfers between authenticated peers, then verifies content by hash above the stream. |
 
-### 3.1 Nostr identity and signed facts
+## 4. Publish-subscribe and discovery
 
-[Nostr](https://github.com/nostr-protocol/nips) keys provide the portable
-identity shared by FIPS nodes and application events. Signed events carry
-profiles, follows, mutes, messages, capability
-adverts, ratings, release roots, and application-defined facts. Signatures bind
-an event to its author; each application decides what that author may do.
-
-The [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
-identity tools add UUID-based rosters and facts for identities that span several
-keys or devices. They support key changes without changing every reference to
-the identity.
-
-### 3.2 nostr-pubsub publish-subscribe
+### 4.1 nostr-pubsub publish-subscribe
 
 [`nostr-pubsub`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub)
 carries ordinary Nostr subscriptions and signed events across local indexes,
 FIPS peers, mesh peers, and optional relays. An application subscribes once and
 applies local policy when choosing sources or accepting events.
 
-`nostr-pubsub` was created to keep Nostr's signed events and subscription model
-without requiring communication to be organized around clients connecting to
-relay servers. It remains compatible with ordinary Nostr relays while also
-providing decentralized peer-to-peer pub/sub. Peers exchange and forward
-subscriptions and signed events with one another, reducing dependence on a few
-large, hardcoded relays. A peer needs a connection to another peer; it does not
-need to expose a server on a public IP address, register a domain name, or
-obtain a TLS certificate. This peer-to-peer mode is essential to the stack:
-without it, signed Nostr communication would still depend operationally on
-relay servers.
+The protocol preserves that model without organizing communication around relay
+servers. Peers can exchange and forward subscriptions and events directly,
+while standard Nostr relays remain optional routes. A peer only needs a path to
+another peer; it does not need to expose a public server, register a domain, or
+obtain a TLS certificate. Signatures decentralize authorship, but peer-to-peer
+pub/sub is what also decentralizes live delivery.
 
-`nostr-pubsub` also provides a shared discovery and coordination plane. It
-distributes FIPS peer adverts and signed peer ratings, along with Hashtree
-mutable `npub/path` root announcements and updates. FIPS and Hashtree can still
-operate with manually configured peers or roots—just as IP can operate without
-DHCP—but they lose automatic decentralized discovery and updates. Discovery
-supplies candidates; FIPS authenticates them, and local policy decides which
-peers and advertised capabilities to admit.
+The [`nostr-pubsub-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub/crates/nostr-pubsub-social-graph)
+adapter uses follows, mutes, graph distance, and signed service ratings to admit
+incoming events to local storage and fanout and to prefer, throttle, or drop
+peer and relay sources. These are viewer-local choices, not network-wide bans.
 
-The same event plane also carries social posts, app updates, repository
+The same event plane carries social posts and stack coordination events:
+peer adverts, machine ratings, Hashtree roots, app updates, repository
 announcements, and service offers. Events announce large content by hash;
 Hashtree routes carry the bytes.
 
-### 3.3 Asynchronous private messaging with nostr-double-ratchet
+### 4.2 Signed peer and service discovery
+
+Discovery adverts are candidates, not authority. Signed, expiring transport
+adverts say where a claimed FIPS identity may be reachable over Ethernet,
+Bluetooth LE, UDP, WebRTC, or another carrier. Capability adverts say what a
+FIPS identity offers—such as Hashtree or `nostr-pubsub`—and identify the
+interface to use.
+
+The client authenticates the remote identity through FIPS, checks the exact
+capability, and applies its own author, social, and resource policy before using
+the peer. Seeing an advert alone grants no access or trust.
+
+An existing authenticated FIPS peer is one bootstrap route, not a registry.
+Through `nostr-pubsub-fips`, ordinary subscriptions and signed adverts travel
+over that connection. Relays, local indexes, and other pub/sub peers can answer
+the same query; no source is mandatory.
+
+| Example app | Usage |
+| --- | --- |
+| [Iris Chat](https://chat.iris.to/) | Uses peer-to-peer pub/sub for live message subscriptions while retaining optional relay routes. |
+| [Nostr VPN](https://nostrvpn.org/) | Publishes peer, route, and service announcements; an exit node can advertise both its reachable FIPS identity and its offered service. |
+
+## 5. Private messaging
+
+### 5.1 nostr-double-ratchet
 
 [`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet)
 encrypts 1:1 messages with NIP-44 and Double Ratchet, supports multi-device
@@ -124,70 +163,9 @@ authenticated pairwise sessions. [Marmot](https://github.com/marmot-protocol/mar
 instead uses MLS as a continuous group key-agreement and membership-state
 protocol.
 
-### 3.4 Social graph as local policy
+## 6. Verifiable content and indexes
 
-[`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
-turns follows, mutes, signed facts, and ratings into viewer-relative signals.
-Each app chooses whose signals to trust, how far they travel, and how to handle
-unknown identities. There is no global trust score.
-
-| Input | Local decision |
-| --- | --- |
-| Follows, social distance, and mutes | Prioritize ordinary Nostr posts from authors near the viewer in the social graph; filter feeds, replies, notifications, profiles, and search results. |
-| Machine observations and signed peer or service ratings | Prefer healthy FIPS and pub/sub peers, downrank degraded sources, and preserve exploration space for unknown peers. |
-| UUID identity rosters, facts, and attestations | Keep identity consistent across keys and devices; rank contextual names and decide which claims an app accepts. |
-
-The [`nostr-pubsub-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub/crates/nostr-pubsub-social-graph)
-adapter uses social distance, nearby mutes, and signed service ratings to allow,
-throttle, drop, or prioritize Nostr event authors and pub/sub peers. Nostr VPN
-uses this policy for peer and event admission. [FIPS](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips)
-publishes machine-generated peer ratings and can use selected rating authors to
-order candidate peers during discovery.
-
-[Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree)
-uses the graph for crawl scope, relay and storage access, mirror selection, and
-profile search. Iris Contacts, Drive, Git, and Social use it to rank profiles,
-search results, feeds, and sharing contacts.
-
-These signals can feed resource schedulers. A Hashtree node can serve or
-fetch for socially close or reputable peers first; a FIPS host can reserve
-connection slots or bandwidth for them. Each node controls this scheduling and
-can reserve capacity for unfamiliar peers.
-
-### 3.5 Human names without a global namespace
-
-Cryptographic keys are secure addresses but poor human names. Naming is a
-signed search problem:
-
-- Nostr profiles propose names for public keys.
-- Fact events attach `name` claims to durable UUIDs and `controls` claims to
-  keys, preserving identity while keys or names change.
-- Hashtree stores provide exact tag lookup; `@hashtree/index` or another
-  database can add tokenized search.
-- Search returns candidates. Viewer-local follows, social distance, explicit
-  trust, and application policy rank them.
-
-Names are signed, non-exclusive claims. The same string can identify several
-candidates, and publishing it first grants no exclusive claim. Each viewer
-resolves it through accepted authors, social context, and private petnames while
-the key or UUID remains stable.
-
-This follows the petname approach described in
-[Zooko's original naming essay](https://www.cs.princeton.edu/courses/archive/spr17/cos518/papers/zooko-triangle.pdf)
-and [An Introduction to Petname Systems](https://www.skyhunter.com/marcs/petnames/IntroPetNames.html):
-published nicknames aid discovery; a name becomes a petname only when a viewer
-adopts a private, unambiguous mapping to a secure identity.
-
-The naming architecture combines Hashtree-backed profile search and social
-ranking with `nostr-social-memory` UUID identities, petnames, aliases, and
-multiple keys.
-[Iris Contacts](https://contacts.iris.to/) combines profiles, graph-ranked
-search, and its own UUID-backed contacts encoded as fact snapshots; its
-[source is on Iris Git](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-contacts).
-
-## 4. Verifiable content and indexes
-
-### 4.1 Hashtree blobs and routes
+### 6.1 Hashtree blobs and routes
 
 [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree)
 stores files as blobs—which can be split into chunks—and directories as manifest
@@ -211,7 +189,7 @@ through that interface. Every response is verified against the requested hash.
 A route miss leaves the other routes available. `nostr-pubsub` announces
 content; Hashtree routes carry the blobs.
 
-### 4.2 Hashtree indexes for large datasets
+### 6.2 Hashtree indexes for large datasets
 
 - [`@hashtree/index`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-index)
   stores immutable B-trees for exact, range, prefix, and lightweight text
@@ -233,36 +211,93 @@ This supports reproducible Nostr-relay-like read projections. The publisher
 defines the available queries and update cadence; applications can query or
 federate several compatible publishers.
 
-[Iris Audio](https://audio.iris.to/) demonstrates the model with shared song,
-artist, and album search roots queried directly by the browser.
-[Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-audio).
-
-### 4.3 Web apps and updates as verified trees
+### 6.3 Web apps and updates as verified trees
 
 A static web app can be published as a Hashtree directory. Its `nhash`
 identifies one immutable version; a signed `npub/tree` name can advance to a
 new version without invalidating the old one.
 
-Iris Drive serves executable sites from separate browser origins such as
-`sitename.npub.iris.localhost` or `<nhash>.iris.localhost`. The separation keeps
+A local app runtime can serve executable sites from separate browser origins
+such as `sitename.npub.iris.localhost` or `<nhash>.iris.localhost`, keeping
 unrelated apps from sharing cookies, storage, or service workers. Application
 sandboxing remains a separate concern.
-
-[Iris Sites at apps.iris.to](https://apps.iris.to/) lists and launches these
-apps. The catalog aids discovery; signed roots identify publisher versions and
-Hashtree hashes verify the app bytes.
-[Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites).
 
 `hashtree-updater` applies the same model to native releases. A signed root
 arrives through `nostr-pubsub`; the app checks the publisher, fetches the
 release through its Hashtree routes, verifies the content address, and installs
-the matching artifact.
+the matching artifact. Notices and artifacts can come from stack-native peers,
+with relay, Blossom, and HTTPS compatibility routes available.
 
-Runtime updates can receive both notice and bytes from stack-native peers, with
-relay, Blossom, and HTTPS compatibility routes available.
-[`hashtree-updater` source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/hashtree-updater).
+| Example app | Usage |
+| --- | --- |
+| [Iris Drive](https://getdrive.iris.to/) | Fetches verified files from a local cache, nearby peer, or remote provider, and serves Hashtree apps from isolated local origins. |
+| [Iris Audio](https://audio.iris.to/) | Queries shared song, artist, and album collection/search roots directly from the browser. |
+| [Iris Sites](https://apps.iris.to/) | Catalogs and launches web apps whose signed roots identify versions and whose Hashtree hashes verify the bytes. |
 
-## 5. Cashu service layer
+## 7. Social context and contextual naming
+
+### 7.1 Social graph as local policy
+
+[`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
+turns follows, mutes, signed facts, and ratings into viewer-relative signals.
+Each app chooses whose signals to trust, how far they travel, and how to handle
+unknown identities. There is no global trust score.
+
+| Input | Local decision |
+| --- | --- |
+| Follows, social distance, and mutes | Prioritize ordinary Nostr posts from authors near the viewer in the social graph; filter feeds, replies, notifications, profiles, and search results. |
+| Machine observations and signed peer or service ratings | Prefer healthy FIPS and pub/sub peers, downrank degraded sources, and preserve exploration space for unknown peers. |
+| UUID identity rosters, facts, and attestations | Keep identity consistent across keys and devices; rank contextual names and decide which claims an app accepts. |
+
+The [`nostr-pubsub-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub/crates/nostr-pubsub-social-graph)
+adapter uses social distance, nearby mutes, and signed service ratings to allow,
+throttle, drop, or prioritize Nostr event authors and pub/sub peers.
+[FIPS](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips)
+publishes machine-generated peer ratings and can use selected rating authors to
+order candidate peers during discovery.
+
+[Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree)
+uses the graph for crawl scope, relay and storage access, mirror selection, and
+profile search.
+
+These signals can guide resource scheduling: Hashtree can prioritize socially
+close or reputable peers, while FIPS can reserve connection slots or bandwidth.
+Each node controls its schedule and can reserve capacity for unfamiliar peers.
+
+### 7.2 Human names without a global namespace
+
+Cryptographic keys are secure addresses but poor human names. Naming is a
+signed search problem:
+
+- Nostr profiles propose names for public keys.
+- Fact events attach `name` claims to durable UUIDs and `controls` claims to
+  keys, preserving identity while keys or names change.
+- Hashtree stores provide exact tag lookup; `@hashtree/index` or another
+  database can add tokenized search.
+- Search returns candidates. Viewer-local follows, social distance, explicit
+  trust, and application policy rank them.
+
+Names are signed claims, not registrations. The same string can identify
+several candidates. Each viewer resolves it through accepted authors, social
+context, and private petnames while the key or UUID remains stable.
+
+This follows the petname approach described in
+[Zooko's original naming essay](https://www.cs.princeton.edu/courses/archive/spr17/cos518/papers/zooko-triangle.pdf)
+and [An Introduction to Petname Systems](https://www.skyhunter.com/marcs/petnames/IntroPetNames.html):
+published nicknames aid discovery; a name becomes a petname only when a viewer
+adopts a private, unambiguous mapping to a secure identity.
+
+The naming architecture combines Hashtree-backed profile search and social
+ranking with `nostr-social-memory` UUID identities, petnames, aliases, and
+multiple keys.
+
+| Example app | Usage |
+| --- | --- |
+| [Nostr VPN](https://nostrvpn.org/) | Uses graph distance, mutes, and signed service ratings for peer and event admission. |
+| [Iris Contacts](https://contacts.iris.to/) | Combines profiles, graph-ranked search, contextual names, and UUID-backed contacts encoded as fact snapshots. |
+| [Iris Drive](https://getdrive.iris.to/) | Uses social context to rank profiles, search results, sharing contacts, and candidate providers. |
+
+## 8. Payments
 
 [`cashu-service`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service)
 provides [Cashu](https://cashu.space/) token transfer and settlement together
@@ -270,14 +305,17 @@ with sat-denominated useful-service receipts and bounded peer credit. A node can
 accept a peer's credit up to a local limit, then request settlement through an
 accepted Cashu mint, Lightning, or another configured method.
 
-Products choose pricing, credit limits, and accepted settlement methods. The
-same adapters can account for connectivity, bandwidth, storage, routing, or
-other services, while free and reciprocal routes remain available.
+Products choose pricing, credit limits, and settlement methods. The same
+adapters can meter connectivity, bandwidth, storage, or routing, while free and
+reciprocal routes remain available.
 
-## 6. Products
+| Example app | Usage |
+| --- | --- |
+| [Nostr VPN](https://nostrvpn.org/) | Lets an exit node charge for forwarded traffic and settle the balance with Cashu. |
 
-The broader app catalog is [apps.iris.to](https://apps.iris.to/); it lists many
-apps beyond the examples below.
+## 9. Products
+
+More apps are listed at [apps.iris.to](https://apps.iris.to/).
 
 | Product | Function | Links |
 | --- | --- | --- |
@@ -289,7 +327,7 @@ apps beyond the examples below.
 | Iris Sites | A launcher and isolated browser runtime for web apps published as Hashtree trees | [App catalog](https://apps.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites) |
 | Iris Git | Git repositories addressed through Nostr and Hashtree; `git-remote-htree` gives command-line Git fetch and push over `htree://` remotes | [Web app](https://git.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-git) · [Remote helper](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) |
 
-### 6.1 Product composition
+### 9.1 Product composition
 
 Current composition names integrations already present in product source and
 ordinary product paths. Optional or in-progress paths are identified separately
@@ -297,15 +335,15 @@ and are not presented as shipped defaults.
 
 | Product | Current composition | Optional or in progress |
 | --- | --- | --- |
-| Iris Chat | [Nostr](#nostr-identity-and-signed-facts) events, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) routing, [`nostr-double-ratchet`](#asynchronous-private-messaging-with-nostr-double-ratchet) messages, [FIPS](#fips-authenticated-datagrams) live links, [`fips-tcp`](#reliable-streams-with-fips-tcp) linked-device sync, and [Hashtree](#hashtree-blobs-and-routes) attachments | Ordinary Nostr relay routes remain compatible |
+| Iris Chat | [Nostr](#nostr-identity-and-signed-events) events, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) routing, [`nostr-double-ratchet`](#nostr-double-ratchet) messages, [FIPS](#fips-authenticated-datagrams) live links, [`fips-tcp`](#reliable-streams-with-fips-tcp) linked-device sync, and [Hashtree](#hashtree-blobs-and-routes) attachments | Ordinary Nostr relay routes remain compatible |
 | Iris Drive | [Hashtree](#hashtree-blobs-and-routes) files, directories, adaptive blob routes and pooled storage; [FIPS](#fips-authenticated-datagrams) authenticated peers and relay/WebRTC bootstrap; [`fips-tcp`](#reliable-streams-with-fips-tcp) blob streams; and the native `iris.localhost` resolver | Paid storage routes remain optional |
-| Nostr VPN | [FIPS](#fips-authenticated-datagrams) private and routed mesh, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) control events, and [social-graph](#social-graph-as-local-policy) peer policy | [Cashu](#cashu-service-layer) settlement for paid exits is optional |
-| Iris Contacts | [Nostr](#nostr-identity-and-signed-facts) profiles, [social graph](#social-graph-as-local-policy), and UUID-backed fact snapshots | — |
+| Nostr VPN | [FIPS](#fips-authenticated-datagrams) private and routed mesh, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) control events, and [social graph](#social-graph-as-local-policy) peer policy | [Cashu](#payments) settlement for paid exits is optional |
+| Iris Contacts | [Nostr](#nostr-identity-and-signed-events) profiles, [social graph](#social-graph-as-local-policy), and UUID-backed fact snapshots | — |
 | Iris Audio | [Hashtree](#hashtree-blobs-and-routes) media, [search indexes and collections](#hashtree-indexes-for-large-datasets), and Nostr mutable-root announcements | FIPS content routes are optional |
 | Iris Sites | [Hashtree](#hashtree-blobs-and-routes) app trees, Nostr mutable roots, isolated web origins, and the Iris Drive resolver | — |
-| Iris Git | Nostr repository roots, [Hashtree](#hashtree-blobs-and-routes) Git data, [social-graph](#social-graph-as-local-policy) context, and [`git-remote-htree`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) | — |
+| Iris Git | Nostr repository roots, [Hashtree](#hashtree-blobs-and-routes) Git data, [social graph](#social-graph-as-local-policy) context, and [`git-remote-htree`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) | — |
 
-## 7. Repository index
+## 10. Repository index
 
 | Component | Source |
 | --- | --- |
@@ -324,3 +362,4 @@ and are not presented as shipped defaults.
 | Cashu service primitives | [cashu-service](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service) |
 | Private-message ratchet | [nostr-double-ratchet](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet) · [GitHub mirror](https://github.com/irislib/nostr-double-ratchet) |
 | Shared web integration | [iris-kit](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-kit) · [GitHub mirror](https://github.com/mmalmi/iris-kit) |
+| Iris Stack architecture and integration lab | [iris-stack](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-stack) · [GitHub mirror](https://github.com/irislib/iris-stack) |
