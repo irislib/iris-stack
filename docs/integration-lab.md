@@ -91,14 +91,14 @@ disabled so a passing run cannot silently use a host-LAN path. Hashtree keeps
 its generic overlay scope while Drive keeps its profile scope; authenticated
 same-host capability discovery is intentionally cross-product.
 
-The scenario seeds two trees in the remote `htree` process. Drive retrieves the
-first through the already-running local provider, which continues the request
-through its Hashtree resolver and caches the result. The lab then kills the
-provider and retrieves the second tree through Drive's pre-existing,
-application-owned UDP route. It verifies the first tree is durable in the dead
-provider's store and the second was not supplied by that provider. It then
-starts a distinct local replacement and retrieves a replacement-only tree. The
-Drive-owned UDP route remains authenticated and connected through every phase.
+The scenario seeds one provider-only tree and one standalone-remote-only tree.
+Drive retrieves the first through the already-running local provider. The lab
+then kills that provider and retrieves the second tree through Drive's
+pre-existing, application-owned UDP route. It verifies the first tree is
+durable in the dead provider's store and the second was not supplied by that
+provider. It then starts a distinct local replacement and retrieves a
+replacement-only tree. The Drive-owned UDP route remains authenticated and
+connected through every phase.
 
 This is intentionally one product slice. Iris Drive still owns its product
 authorization and startup tests; Hashtree still owns HTL, codec, failure, and

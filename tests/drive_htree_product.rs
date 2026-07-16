@@ -70,7 +70,7 @@ async fn run_product_scenario() -> Result<()> {
     let first_bytes = payload("via-provider", 192 * 1024 + 17);
     let second_bytes = payload("after-provider-death", 192 * 1024 + 31);
     let replacement_bytes = payload("replacement-provider", 192 * 1024 + 47);
-    let first_cid = add_blob(&htree_bin, &remote, "first.bin", &first_bytes).await?;
+    let first_cid = add_blob(&htree_bin, &provider, "first.bin", &first_bytes).await?;
     let second_cid = add_blob(&htree_bin, &remote, "second.bin", &second_bytes).await?;
     replacement.write_config(NodeConfig {
         http_addr: &replacement_http,
