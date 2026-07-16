@@ -4,11 +4,11 @@ mod support;
 
 use std::time::Duration;
 
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use product::{
-    HtreeNode, NodeConfig, TestRoot, add_blob, cat_blob, drive_identity, fetch_status,
-    fips_udp_peer_connected, htree_identity, payload, required_binary, reserve_tcp_address,
-    reserve_udp_address, spawn_htree, wait_for_fips_peer_connection,
+    HtreeNode, NodeConfig, TestRoot, add_blob, cat_blob, drive_identity, htree_identity,
+    nhash_for_cid, payload, payload_sha256, required_binary, reserve_tcp_address,
+    reserve_udp_address, spawn_htree, write_hashtree_read_config,
 };
 use serde_json::Value;
 use support::process::ManagedProcess;
@@ -18,8 +18,8 @@ use tokio::time::timeout;
 static PRODUCT_MATRIX_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires released htree and the Iris Drive product fixture; run scripts/product-lab.sh"]
-async fn drive_uses_htree_htl_then_survives_provider_death_on_its_owned_udp_route() {
+#[ignore = "requires released htree plus Iris Drive and Chat product fixtures; run scripts/product-lab.sh"]
+async fn chat_and_drive_share_htree_without_losing_their_standalone_routes() {
     let _guard = PRODUCT_MATRIX_LOCK.lock().await;
     run_product_scenario().await.unwrap();
 }
@@ -27,6 +27,7 @@ async fn drive_uses_htree_htl_then_survives_provider_death_on_its_owned_udp_rout
 async fn run_product_scenario() -> Result<()> {
     let htree_bin = required_binary("IRIS_STACK_HTREE_BIN")?;
     let drive_bin = required_binary("IRIS_STACK_DRIVE_FIXTURE_BIN")?;
+    let chat_bin = required_binary("IRIS_STACK_CHAT_FIXTURE_BIN")?;
     let root = TestRoot::new()?;
     let remote = HtreeNode::new(root.path(), "remote");
     let provider = HtreeNode::new(root.path(), "provider");
@@ -37,6 +38,8 @@ async fn run_product_scenario() -> Result<()> {
     let drive_udp = reserve_udp_address()?;
     let remote_http = reserve_tcp_address()?;
     let provider_http = reserve_tcp_address()?;
+    let chat_config = root.path().join("chat-hashtree-config");
+    let chat_data = root.path().join("chat-data");
 
     remote.write_config(NodeConfig {
         http_addr: &remote_http,
@@ -49,7 +52,7 @@ async fn run_product_scenario() -> Result<()> {
         http_addr: &provider_http,
         udp_addr: &provider_udp,
         rendezvous_addr: &local_rendezvous,
-        peers: &[(&remote_npub, &remote_udp)],
+        peers: &[],
     })?;
     let provider_npub = htree_identity(&htree_bin, &provider).await?;
     let drive_key = root.path().join("drive-app-key");
@@ -58,30 +61,46 @@ async fn run_product_scenario() -> Result<()> {
         http_addr: &remote_http,
         udp_addr: &remote_udp,
         rendezvous_addr: &remote_rendezvous,
-        peers: &[
-            (&provider_npub, &provider_udp),
-            (&drive_identity.npub, &drive_udp),
-        ],
+        peers: &[(&drive_identity.npub, &drive_udp)],
     })?;
 
-    let first_bytes = payload("via-provider", 192 * 1024 + 17);
-    let second_bytes = payload("after-provider-death", 192 * 1024 + 31);
-    let first_cid = add_blob(&htree_bin, &remote, "first.bin", &first_bytes).await?;
-    let second_cid = add_blob(&htree_bin, &remote, "second.bin", &second_bytes).await?;
+    let provider_bytes = payload("shared-provider", 192 * 1024 + 17);
+    let standalone_bytes = payload("standalone-after-miss", 192 * 1024 + 31);
+    let after_death_bytes = payload("standalone-after-death", 192 * 1024 + 47);
+    let provider_cid = add_blob(&htree_bin, &provider, "provider.bin", &provider_bytes).await?;
+    let standalone_cid = add_blob(&htree_bin, &remote, "standalone.bin", &standalone_bytes).await?;
+    let after_death_cid =
+        add_blob(&htree_bin, &remote, "after-death.bin", &after_death_bytes).await?;
+    let provider_nhash = nhash_for_cid(&provider_cid)?;
+    let standalone_nhash = nhash_for_cid(&standalone_cid)?;
+    let after_death_nhash = nhash_for_cid(&after_death_cid)?;
 
     let mut remote_process = spawn_htree(&htree_bin, &remote, &remote_http, "remote htree")?;
     remote_process.line_containing("FIPS: enabled").await?;
     let mut provider_process =
         spawn_htree(&htree_bin, &provider, &provider_http, "provider htree")?;
     provider_process.line_containing("FIPS: enabled").await?;
-    if let Err(error) = wait_for_fips_peer_connection(&provider_http, &remote_npub).await {
-        let output = provider_process.kill().await?;
-        bail!(
-            "{error:#}; provider stdout:\n{}\nprovider stderr:\n{}",
-            output.stdout,
-            output.stderr
+
+    write_hashtree_read_config(&chat_config, &format!("http://{remote_http}"))?;
+    let mut chat_command = Command::new(&chat_bin);
+    chat_command
+        .arg("run")
+        .arg(&chat_data)
+        .env("IRIS_CHAT_SAME_HOST_HASHTREE", "1")
+        .env("IRIS_CHAT_FIPS_LOCAL_RENDEZVOUS_ADDR", &local_rendezvous)
+        .env("HTREE_CONFIG_DIR", &chat_config)
+        .env(
+            "RUST_LOG",
+            std::env::var("IRIS_STACK_PRODUCT_LOG").unwrap_or_else(|_| "warn".to_string()),
         );
-    }
+    let mut chat = ManagedProcess::spawn("Iris Chat fixture", &mut chat_command)?;
+    let chat_ready = chat.json_event("ready").await?;
+    ensure!(
+        chat_ready["npub"]
+            .as_str()
+            .is_some_and(|npub| npub.starts_with("npub1")),
+        "Chat fixture did not report its authenticated device identity"
+    );
 
     let mut drive_command = Command::new(&drive_bin);
     drive_command
@@ -113,31 +132,20 @@ async fn run_product_scenario() -> Result<()> {
     ensure!(ready["discovery_scope"] == drive_identity.discovery_scope);
 
     wait_for_drive_topology(&mut drive, &remote_udp, &provider_npub).await?;
-    drive.send_line(&format!("fetch {first_cid}")).await?;
-    let first = match drive.json_event("fetch").await {
-        Ok(value) => value,
-        Err(error) => {
-            let diagnostics = drive
-                .finish()
-                .await
-                .expect_err("Drive exited cleanly without its fetch event");
-            let provider_output = provider_process.kill().await?;
-            let remote_output = remote_process.kill().await?;
-            bail!(
-                "{error:#}; Drive diagnostics: {diagnostics:#}; provider stdout:\n{}\nprovider stderr:\n{}\nremote stdout:\n{}\nremote stderr:\n{}",
-                provider_output.stdout,
-                provider_output.stderr,
-                remote_output.stdout,
-                remote_output.stderr,
-            );
-        }
-    };
-    assert_fetch(&first, &first_cid, &remote_udp)?;
+    let chat_provider = wait_for_chat_fetch(&mut chat, &provider_nhash, &provider_bytes).await?;
+    assert_chat_fetch(&chat_provider, &provider_nhash, &provider_bytes)?;
+    let drive_provider = fetch_drive(&mut drive, &provider_cid).await?;
+    assert_drive_fetch(&drive_provider, &provider_cid, &remote_udp)?;
 
-    let provider_status = fetch_status(&provider_http).await?;
+    let chat_standalone = fetch_chat(&mut chat, &standalone_nhash).await?;
+    assert_chat_fetch(&chat_standalone, &standalone_nhash, &standalone_bytes)?;
+    let drive_standalone = fetch_drive(&mut drive, &standalone_cid).await?;
+    assert_drive_fetch(&drive_standalone, &standalone_cid, &remote_udp)?;
     ensure!(
-        fips_udp_peer_connected(&provider_status, &remote_npub),
-        "provider lost its authenticated remote UDP FIPS route during the HTL retrieval"
+        cat_blob(&htree_bin, &provider, &standalone_cid)
+            .await
+            .is_err(),
+        "same-host HTL=0 miss incorrectly routed through the provider mesh"
     );
 
     let provider_exit = provider_process.kill().await?;
@@ -147,31 +155,24 @@ async fn run_product_scenario() -> Result<()> {
     );
     assert_no_lan_discovery(&provider_exit.stdout, &provider_exit.stderr)?;
     ensure!(
-        cat_blob(&htree_bin, &provider, &first_cid).await? == first_bytes,
-        "the actual htree provider did not cache the blob it resolved over HTL"
+        cat_blob(&htree_bin, &provider, &provider_cid).await? == provider_bytes,
+        "the shared provider lost its local blob"
     );
 
-    drive.send_line(&format!("fetch {second_cid}")).await?;
-    let second = match drive.json_event("fetch").await {
-        Ok(value) => value,
-        Err(error) => {
-            let diagnostics = drive
-                .finish()
-                .await
-                .expect_err("Drive exited cleanly without its fallback fetch event");
-            let remote_output = remote_process.kill().await?;
-            bail!(
-                "{error:#}; Drive diagnostics: {diagnostics:#}; remote stdout:\n{}\nremote stderr:\n{}",
-                remote_output.stdout,
-                remote_output.stderr,
-            );
-        }
-    };
-    assert_fetch(&second, &second_cid, &remote_udp)?;
+    let chat_after_death = fetch_chat(&mut chat, &after_death_nhash).await?;
+    assert_chat_fetch(&chat_after_death, &after_death_nhash, &after_death_bytes)?;
+    let drive_after_death = fetch_drive(&mut drive, &after_death_cid).await?;
+    assert_drive_fetch(&drive_after_death, &after_death_cid, &remote_udp)?;
     ensure!(
-        cat_blob(&htree_bin, &provider, &second_cid).await.is_err(),
+        cat_blob(&htree_bin, &provider, &after_death_cid)
+            .await
+            .is_err(),
         "the dead provider unexpectedly contained the post-death blob"
     );
+
+    chat.send_line("status").await?;
+    let chat_status = chat.json_event("status").await?;
+    ensure!(chat_status["npub"] == chat_ready["npub"]);
 
     drive.send_line("status").await?;
     let final_status = drive.json_event("status").await?;
@@ -181,6 +182,12 @@ async fn run_product_scenario() -> Result<()> {
     let drive_output = drive.finish().await?;
     ensure!(drive_output.status.success());
 
+    chat.send_line("stop").await?;
+    chat.json_event("stopped").await?;
+    let chat_output = chat.finish().await?;
+    ensure!(chat_output.status.success());
+    assert_no_lan_discovery(&chat_output.stdout, &chat_output.stderr)?;
+
     let remote_exit = remote_process.kill().await?;
     ensure!(
         !remote_exit.status.success(),
@@ -188,8 +195,8 @@ async fn run_product_scenario() -> Result<()> {
     );
     assert_no_lan_discovery(&remote_exit.stdout, &remote_exit.stderr)?;
     eprintln!(
-        "product lab passed: Drive {}, local htree {}, remote htree {}",
-        ready["npub"], provider_npub, remote_npub
+        "product lab passed: Chat {}, Drive {}, shared htree {}, remote htree {}",
+        chat_ready["npub"], ready["npub"], provider_npub, remote_npub
     );
     Ok(())
 }
@@ -219,7 +226,43 @@ async fn wait_for_drive_topology(
     .context("Drive topology did not converge to its UDP route and same-host blob provider")?
 }
 
-fn assert_fetch(value: &Value, cid: &str, remote_udp: &str) -> Result<()> {
+async fn wait_for_chat_fetch(
+    chat: &mut ManagedProcess,
+    nhash: &str,
+    expected: &[u8],
+) -> Result<Value> {
+    timeout(Duration::from_secs(30), async {
+        loop {
+            let value = fetch_chat(chat, nhash).await?;
+            if assert_chat_fetch(&value, nhash, expected).is_ok() {
+                return Ok::<_, anyhow::Error>(value);
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .context("Chat did not discover and reuse the same-host blob provider")?
+}
+
+async fn fetch_chat(chat: &mut ManagedProcess, nhash: &str) -> Result<Value> {
+    chat.send_line(&format!("fetch {nhash}")).await?;
+    chat.json_event("fetch").await
+}
+
+fn assert_chat_fetch(value: &Value, nhash: &str, expected: &[u8]) -> Result<()> {
+    ensure!(value["nhash"] == nhash);
+    ensure!(value["fetched"] == expected.len() as u64);
+    ensure!(value["sha256"] == payload_sha256(expected));
+    ensure!(value.get("error").is_none());
+    Ok(())
+}
+
+async fn fetch_drive(drive: &mut ManagedProcess, cid: &str) -> Result<Value> {
+    drive.send_line(&format!("fetch {cid}")).await?;
+    drive.json_event("fetch").await
+}
+
+fn assert_drive_fetch(value: &Value, cid: &str, remote_udp: &str) -> Result<()> {
     ensure!(value["cid"] == cid);
     ensure!(value["fetched"].as_u64().unwrap_or(0) > 0);
     ensure!(value["root_cached"] == true);
