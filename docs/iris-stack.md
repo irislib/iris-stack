@@ -97,27 +97,43 @@ carries ordinary Nostr subscriptions and signed events across local indexes,
 FIPS peers, mesh peers, and optional relays. An application subscribes once and
 applies local policy when choosing sources or accepting events.
 
+`nostr-pubsub` keeps Nostr's signed events and subscription model without
+requiring communication to be organized around clients connecting to relay
+servers. Peers can exchange and forward ordinary subscriptions and events
+directly, while standard Nostr relays remain compatible optional routes. A peer
+only needs a path to another peer; it does not need to expose a public server,
+register a domain, or obtain a TLS certificate. Signatures decentralize
+authorship, but peer-to-peer pub/sub is what also decentralizes live delivery.
+
+The [`nostr-pubsub-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub/crates/nostr-pubsub-social-graph)
+adapter applies `nostr-social-graph` to this flow. An app can use follows,
+mutes, graph distance, and signed service ratings to decide whether an incoming
+event is admitted to local storage and fanout, and which peer or relay sources
+are preferred, throttled, or dropped. These remain viewer-local policy choices,
+not network-wide bans.
+
 The same event plane carries social posts and stack coordination events:
 peer adverts, machine ratings, Hashtree roots, app updates, repository
 announcements, and service offers. Events announce large content by hash;
 Hashtree routes carry the bytes.
 
-### 4.2 Peer discovery from one FIPS link
+### 4.2 Signed peer and service discovery
 
-An authenticated FIPS connection is a bootstrap path. Through
-`nostr-pubsub-fips`, an application sends an ordinary Nostr subscription and
-its peer returns or forwards signed, expiring adverts:
+Discovery adverts are candidates, not authority. Signed, expiring transport
+adverts say where a claimed FIPS identity may be reachable over Ethernet,
+Bluetooth LE, UDP, WebRTC, or another carrier. Capability adverts say what a
+FIPS identity offers—such as Hashtree or `nostr-pubsub`—and identify the
+interface to use.
 
-| Question | How the answer is used |
-| --- | --- |
-| Which Ethernet, Bluetooth LE, UDP, WebRTC, or other transport endpoint can I connect FIPS to? | Treat the endpoint and claimed identity as a candidate, then authenticate it with FIPS. |
-| Which FIPS identity offers Hashtree, `nostr-pubsub`, or another capability? | Connect to or reuse that peer, then use the advertised interface. |
+A client still authenticates the remote identity through FIPS, checks the exact
+capability, and applies its own author, social, and resource policy before using
+the peer. Seeing an advert alone grants no access or trust.
 
-The DHCP reference applies to one form of endpoint discovery: *which reachable
-transport endpoint can I connect FIPS to?* Capability adverts also answer
-*which FIPS identity offers this service?* FIPS authenticates each candidate,
-and local author, social, capability, and resource policy decides admission.
-Relays, indexes, and other pub/sub routes can answer the same request.
+An existing authenticated FIPS peer is one bootstrap route, not a registry.
+Through `nostr-pubsub-fips`, an application can send an ordinary subscription
+over that connection and receive or forward the same adverts. Relays, local
+indexes, and other pub/sub peers can answer the same query; no source is
+required for discovery to work.
 
 ## 5. Verifiable content and indexes
 

@@ -18,6 +18,7 @@ test('renders the public architecture Markdown', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '2.1 Nostr identity and signed events' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '2.2 Signed fact events' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '4.1 nostr-pubsub publish-subscribe' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '4.2 Signed peer and service discovery' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '5.2 Hashtree indexes for large datasets' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '5.3 Web apps and updates as verified trees' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '6.1 Social graph as local policy' })).toBeVisible();

@@ -178,7 +178,12 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.doesNotMatch(guide, /lower-level links|physical layer/);
   assert.match(guide, /same public-key type and format as a Nostr public key/);
   assert.match(guide, /\[`nostr-pubsub`\]\(https:\/\/git\.iris\.to\//);
-  assert.match(guide, /DHCP reference applies to one form of endpoint discovery/);
+  assert.match(guide, /Peers can exchange and forward ordinary subscriptions and events\s+directly/);
+  assert.match(guide, /Signatures decentralize\s+authorship, but peer-to-peer pub\/sub is what also decentralizes live delivery/);
+  assert.match(guide, /incoming\s+event is admitted to local storage and fanout/);
+  assert.match(guide, /peer or relay sources\s+are preferred, throttled, or dropped/);
+  assert.match(guide, /Discovery adverts are candidates, not authority/);
+  assert.match(guide, /existing authenticated FIPS peer is one bootstrap route, not a registry/);
   assert.match(guide, /nostr-pubsub-fips/);
   assert.match(guide, /Social graph as local policy/);
   assert.match(guide, /nostr-pubsub-social-graph/);
