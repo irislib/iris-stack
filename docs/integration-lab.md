@@ -54,7 +54,7 @@ evidence that a product composes the released pieces correctly. The explicit
 `drive_htree_product` gate starts these real processes:
 
 The checked-in Rust lockfile pins the substrate gate to the published
-`fips-core` 0.4.1, `fips-tcp` 0.2.0, and `hashtree-fips-transport` 0.4.0
+`fips-core` 0.4.1, `fips-tcp` 0.2.0, and `hashtree-fips-transport` 0.4.1
 artifacts. Product fixtures and the `htree` executable are supplied as exact
 coordinates at run time.
 
@@ -99,12 +99,15 @@ cargo fmt --check
 ```
 
 The released-product gate is ignored by ordinary `cargo test` because it
-installs and runs external artifacts. Run it with an exact public Iris Drive
-commit; Hashtree is installed from the exact registry version unless a binary
-is supplied explicitly:
+installs and runs external artifacts. The script pins Iris Drive commit
+`142ea1e83b5251d1fbdf6e9a0ce44126892d2fbc` and `hashtree-cli` 0.2.85 by
+default. Run it directly, or override either exact coordinate explicitly:
 
 ```sh
+scripts/product-lab.sh
+
 IRIS_STACK_DRIVE_REV=<exact-commit> \
+IRIS_STACK_HTREE_VERSION=<exact-version> \
 scripts/product-lab.sh
 ```
 
@@ -118,5 +121,6 @@ scripts/product-lab.sh
 ```
 
 `.github/workflows/product-lab.yml` exposes the same gate as a manually
-dispatched or reusable workflow. Both inputs are exact artifact coordinates;
-the workflow has no checkout-relative references to sibling repositories.
+dispatched or reusable workflow. Its optional inputs override the script's
+exact artifact coordinates; the workflow has no checkout-relative references
+to sibling repositories.

@@ -3,6 +3,7 @@ set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 install_root=${IRIS_STACK_PRODUCT_INSTALL_ROOT:-"$repo_dir/target/product-lab"}
+drive_rev=${IRIS_STACK_DRIVE_REV:-142ea1e83b5251d1fbdf6e9a0ce44126892d2fbc}
 mkdir -p "$install_root"
 
 if [ -n "${IRIS_STACK_HTREE_BIN:-}" ]; then
@@ -27,13 +28,12 @@ if [ -n "${IRIS_STACK_DRIVE_FIXTURE_BIN:-}" ]; then
     exit 1
   }
 else
-  : "${IRIS_STACK_DRIVE_REV:?set IRIS_STACK_DRIVE_REV to an exact published Git commit}"
   drive_git=${IRIS_STACK_DRIVE_GIT:-https://github.com/mmalmi/iris-drive}
   cargo install \
     --locked \
     --root "$install_root" \
     --git "$drive_git" \
-    --rev "$IRIS_STACK_DRIVE_REV" \
+    --rev "$drive_rev" \
     --bin iris-drive-stack-fixture \
     iris-drive-core
   IRIS_STACK_DRIVE_FIXTURE_BIN=$install_root/bin/iris-drive-stack-fixture

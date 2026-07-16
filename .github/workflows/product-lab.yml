@@ -4,8 +4,8 @@ on:
   workflow_call:
     inputs:
       drive_rev:
-        description: Exact public Iris Drive commit containing the stack fixture
-        required: true
+        description: Optional exact public Iris Drive commit override
+        required: false
         type: string
       htree_version:
         description: Exact released hashtree-cli version
@@ -15,8 +15,8 @@ on:
   workflow_dispatch:
     inputs:
       drive_rev:
-        description: Exact public Iris Drive commit containing the stack fixture
-        required: true
+        description: Optional exact public Iris Drive commit override
+        required: false
         type: string
       htree_version:
         description: Exact released hashtree-cli version
