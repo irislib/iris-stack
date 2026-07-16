@@ -173,8 +173,9 @@ search, and its own UUID-backed contacts encoded as fact snapshots; its
 ### 4.1 Hashtree blobs and routes
 
 [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree)
-stores files as blobs and directories as trees, each addressed and verified by
-hash. It presents one operation—fetch a blob by hash—across configured sources.
+stores files as blobs—which can be split into chunks—and directories as manifest
+trees. Each blob or manifest is addressed and independently verified by hash.
+It presents one operation—fetch a blob by hash—across configured sources.
 Anything that implements that operation is a `BlobRoute`.
 
 [Blossom](https://github.com/hzrd149/blossom) provides compatible HTTP storage
@@ -183,8 +184,10 @@ for SHA-256-addressed blobs. Related proposals define
 [directory manifests (BUD-16)](https://github.com/hzrd149/blossom/pull/105),
 [chunked file and directory fanout manifests (BUD-17)](https://github.com/hzrd149/blossom/pull/106),
 and [Hashtree references (BUD-18)](https://github.com/hzrd149/blossom/pull/107).
-Clients handle encryption, manifests, and reference resolution; Blossom servers
-continue to store ordinary blobs.
+Together, these BUDs make the encoding canonical: files may be encrypted chunks,
+and directories may be manifest trees. Client-side CHK encryption is the default;
+each resulting blob or manifest remains content-hash addressed and independently
+verifiable. Blossom servers continue to store ordinary blobs.
 
 Local storage, nearby peers, the wider mesh, and paid providers can all answer
 through that interface. Every response is verified against the requested hash.

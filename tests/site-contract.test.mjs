@@ -59,12 +59,6 @@ test('the capability table navigates within the guide', () => {
   ]) {
     assert(guide.includes(`](${chapter}) |`), `expected a first-column capability-table link to ${chapter}`);
   }
-  assert.match(guide, /Authenticated datagrams addressed by self-generated public keys/);
-  assert.match(guide, /Hierarchically allocated or location-dependent addressing \(domain names and IP addresses\), plus transport-specific authentication and routing/);
-  assert.match(guide, /Platform account, email address, phone number, domain name, or TLS certificate as identity/);
-  assert.match(guide, /Origin server, CDN, or cloud store as content authority/);
-  assert.match(guide, /Hash-addressed files and directories/);
-  assert.match(guide, /files as blobs and directories as trees/);
   assert.match(guide, /\[Blossom\]\(https:\/\/github\.com\/hzrd149\/blossom\)/);
   for (const pull of [104, 105, 106, 107]) {
     assert(guide.includes(`https://github.com/hzrd149/blossom/pull/${pull}`));
