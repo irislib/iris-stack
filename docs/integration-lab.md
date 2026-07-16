@@ -19,33 +19,47 @@ consumer ----------------------------------------------------/
 anchor <==== authenticated loopback FIPS ====> provider
    ^                                              ^
    +======== authenticated loopback FIPS ========+-- consumer
+
+provider Store.put ======> shared LMDB <====== consumer BlobRouter.get
+replacement Store.put ========^
 ```
 
 The first local process exclusively binds an isolated loopback UDP address.
 Other processes know the address but not its identity. FIPS obtains an
 untrusted public-key hint and proves it with the ordinary Noise IK handshake.
-The lab treats that exchange as a black box and observes the resulting
-authenticated peer and capability directory.
+The lab treats that exchange as a black box.
 
-The provider wraps an ordinary Hashtree store in `SameHostBlobStore` and
-advertises `hashtree.blob/1` through authenticated FSP. The consumer fetches a
-blob through the production FIPS TCP adapter, verifies its hash, and caches it.
+Provider, consumer, and replacement processes independently open one configured
+Hashtree data directory through the canonical shared-LMDB opener, with an
+identical storage budget. Providers write immutable blobs explicitly through
+their application-owned `Store`. The consumer reads through a production
+`BlobRouter` containing an ordinary `StoreBlobRoute`; the router performs the
+central hash check. FIPS is not in this local read path and no local process is
+a mandatory daemon. This direct sharing applies to immutable blob bytes only;
+the lab does not treat mutable product metadata, identities, indexes, or pin/GC
+policy as implicitly shareable application state.
+
+When Hashtree config selects hot and legacy LMDB tiers, the configured store
+owns that tier selection and is still registered with the outer router as one
+opaque route.
 
 ## Failure matrices
 
 The process tests cover:
 
-- graceful and forced rendezvous-anchor death, exclusive rebinding, and local
-  topology convergence;
-- graceful and forced provider death, capability withdrawal, replacement, and
-  an uncached fetch from the replacement identity;
-- a local cache hit after provider disappearance;
-- route-local `NoResult` before a provider exists and after it disappears;
+- graceful and forced rendezvous-anchor death while shared reads and each
+  process's direct egress continue;
+- graceful and forced provider death followed by a distinct replacement
+  process writing through a separately opened LMDB handle;
+- a long-lived reader observing new immutable blobs from the original and
+  replacement writers, and retaining the original blob after writer death;
+- route-local `NoResult` before the requested hash is written, without treating
+  that result as global absence;
 - application-owned direct UDP traffic before, during, and after local churn.
 
 The last check is important: same-host reuse does not suppress or delegate a
-product's outbound connections. `hashtree.blob/1` is a direct provider
-interface, not a replacement for Hashtree HTL routing.
+product's outbound connections. Direct shared storage is one opaque blob route,
+not a replacement for Hashtree HTL routing.
 
 ## Released-product gate
 
@@ -54,8 +68,9 @@ evidence that a product composes the released pieces correctly. The explicit
 `drive_htree_product` gate starts these real processes:
 
 The checked-in Rust lockfile pins the substrate gate to the published
-`fips-core` 0.4.4, `fips-tcp` 0.2.0, and `hashtree-fips-transport` 0.4.3
-artifacts. Product fixtures and the `htree` executable are supplied as exact
+`fips-core` 0.4.4, `hashtree-core` 0.2.85, `hashtree-lmdb` 0.2.83, and
+`hashtree-network` 0.2.84 artifacts. Product fixtures and the `htree`
+executable, including their transport dependencies, are supplied as exact
 coordinates at run time.
 
 ```text
@@ -77,13 +92,14 @@ disabled so a passing run cannot silently use a host-LAN path. Hashtree keeps
 its generic overlay scope while Drive keeps its profile scope; authenticated
 same-host capability discovery is intentionally cross-product.
 
-The scenario seeds two trees in the remote `htree` process. Drive retrieves the
-first through the already-running local provider, which continues the request
-through its Hashtree resolver and caches the result. The lab then kills the
-provider and retrieves the second tree through Drive's pre-existing,
-application-owned UDP route. It verifies the first tree is durable in the dead
-provider's store, the second was not supplied by that provider, and Drive's UDP
-route remains authenticated and connected before and after the failure.
+The scenario seeds one provider-only tree and one standalone-remote-only tree.
+Drive retrieves the first through the already-running local provider. The lab
+then kills that provider and retrieves the second tree through Drive's
+pre-existing, application-owned UDP route. It verifies the first tree is
+durable in the dead provider's store and the second was not supplied by that
+provider. It then starts a distinct local replacement and retrieves a
+replacement-only tree. The Drive-owned UDP route remains authenticated and
+connected through every phase.
 
 This is intentionally one product slice. Iris Drive still owns its product
 authorization and startup tests; Hashtree still owns HTL, codec, failure, and

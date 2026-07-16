@@ -3,7 +3,7 @@ mod support;
 use std::collections::HashSet;
 use std::net::UdpSocket;
 
-use support::process::ManagedProcess;
+use support::process::{ManagedProcess, TestRoot};
 use tokio::process::Command;
 
 static PROCESS_MATRIX_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -19,22 +19,25 @@ struct Process {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn real_blob_store_survives_graceful_and_forced_anchor_replacement() {
+async fn shared_lmdb_reads_survive_graceful_and_forced_anchor_death() {
     let _guard = PROCESS_MATRIX_LOCK.lock().await;
     for anchor_exit in [ProcessExit::Graceful, ProcessExit::Forced] {
-        exercise_anchor_replacement(anchor_exit).await;
+        exercise_anchor_death(anchor_exit).await;
     }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn real_blob_store_recovers_from_graceful_and_forced_provider_churn() {
+async fn shared_lmdb_reads_survive_graceful_and_forced_provider_churn() {
     let _guard = PROCESS_MATRIX_LOCK.lock().await;
     for provider_exit in [ProcessExit::Graceful, ProcessExit::Forced] {
         exercise_provider_churn(provider_exit).await;
     }
 }
 
-async fn exercise_anchor_replacement(anchor_exit: ProcessExit) {
+async fn exercise_anchor_death(anchor_exit: ProcessExit) {
+    let root = TestRoot::new().expect("test root");
+    let data_dir = root.path().join("shared-hashtree-data");
+    let data_dir = data_dir.to_str().expect("UTF-8 Hashtree data path");
     let rendezvous_addr = reserve_udp_address();
     let external_addr = reserve_udp_address();
 
@@ -56,7 +59,7 @@ async fn exercise_anchor_replacement(anchor_exit: ProcessExit) {
         &rendezvous_addr,
         &external_npub,
         &external_addr,
-        &[],
+        &[data_dir],
     )
     .await;
     let provider_npub = provider.identity("PROVIDER_READY ").await;
@@ -66,7 +69,7 @@ async fn exercise_anchor_replacement(anchor_exit: ProcessExit) {
         &rendezvous_addr,
         &external_npub,
         &external_addr,
-        &[&provider_npub],
+        &[data_dir, "ready"],
     )
     .await;
     consumer.line_containing("CONSUMER_READY ").await;
@@ -92,17 +95,17 @@ async fn exercise_anchor_replacement(anchor_exit: ProcessExit) {
 
     assert_markers(
         &provider_output,
-        &[&format!(
-            "LOCAL_AUTH role=provider configured=false peer={anchor_npub}"
-        )],
+        &[
+            &format!("LOCAL_AUTH role=provider configured=false peer={anchor_npub}"),
+            "shared_lmdb=true",
+        ],
     );
     assert_markers(
         &consumer_output,
         &[
             &format!("LOCAL_AUTH role=consumer configured=false peer={anchor_npub}"),
-            "CAPABILITY_AUTHENTICATED hashtree.blob/1",
-            "BLOB_FETCH phase=before verified=true cached=true",
-            "BLOB_FETCH phase=after verified=true cached=true",
+            "BLOB_FETCH phase=before verified=true shared=true",
+            "BLOB_FETCH phase=after verified=true shared=true",
         ],
     );
 
@@ -122,6 +125,9 @@ async fn exercise_anchor_replacement(anchor_exit: ProcessExit) {
 }
 
 async fn exercise_provider_churn(provider_exit: ProcessExit) {
+    let root = TestRoot::new().expect("test root");
+    let data_dir = root.path().join("shared-hashtree-data");
+    let data_dir = data_dir.to_str().expect("UTF-8 Hashtree data path");
     let rendezvous_addr = reserve_udp_address();
     let external_addr = reserve_udp_address();
 
@@ -146,11 +152,11 @@ async fn exercise_provider_churn(provider_exit: ProcessExit) {
         &rendezvous_addr,
         &external_npub,
         &external_addr,
-        &[],
+        &[data_dir, "empty"],
     )
     .await;
     consumer
-        .line_containing("BLOB_MISS phase=no-provider truthful=true cached=false")
+        .line_containing("BLOB_MISS phase=no-provider truthful=true shared=false")
         .await;
     let consumer_npub = consumer.identity("CONSUMER_READY ").await;
 
@@ -159,23 +165,17 @@ async fn exercise_provider_churn(provider_exit: ProcessExit) {
         &rendezvous_addr,
         &external_npub,
         &external_addr,
-        &["first"],
+        &[data_dir, "first"],
     )
     .await;
     let provider_npub = provider.identity("PROVIDER_READY ").await;
     consumer
-        .command_until(
-            &format!("fetch first {provider_npub}"),
-            "CONSUMER_PROVIDER_ACTIVE ",
-        )
+        .command_until("fetch first", "CONSUMER_PROVIDER_ACTIVE ")
         .await;
 
     terminate(provider, provider_exit, "PROVIDER_DONE").await;
     consumer
-        .command_until(
-            &format!("provider-gone {provider_npub}"),
-            "CONSUMER_PROVIDER_GONE ",
-        )
+        .command_until("provider-gone", "CONSUMER_PROVIDER_GONE ")
         .await;
 
     let mut replacement = spawn_product(
@@ -183,16 +183,13 @@ async fn exercise_provider_churn(provider_exit: ProcessExit) {
         &rendezvous_addr,
         &external_npub,
         &external_addr,
-        &["replacement"],
+        &[data_dir, "replacement"],
     )
     .await;
     let replacement_npub = replacement.identity("PROVIDER_READY ").await;
     assert_ne!(provider_npub, replacement_npub);
     consumer
-        .command_until(
-            &format!("fetch replacement {replacement_npub}"),
-            "CONSUMER_PROVIDER_ACTIVE ",
-        )
+        .command_until("fetch replacement", "CONSUMER_PROVIDER_ACTIVE ")
         .await;
 
     anchor
@@ -211,10 +208,10 @@ async fn exercise_provider_churn(provider_exit: ProcessExit) {
     assert_markers(
         &consumer_output,
         &[
-            "BLOB_FETCH phase=first verified=true cached=true",
-            "BLOB_CACHE phase=provider-gone verified=true",
-            "BLOB_MISS phase=provider-gone truthful=true cached=false",
-            "BLOB_FETCH phase=replacement verified=true cached=true",
+            "BLOB_FETCH phase=first verified=true shared=true",
+            "BLOB_SHARED phase=provider-gone verified=true",
+            "BLOB_MISS phase=provider-gone truthful=true shared=false",
+            "BLOB_FETCH phase=replacement verified=true shared=true",
             "CONSUMER_DONE",
         ],
     );
