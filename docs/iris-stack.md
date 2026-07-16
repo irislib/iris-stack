@@ -87,16 +87,20 @@ service datagrams directly.
 ### 3.2 Reliable streams with fips-tcp
 
 [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp)
-adds reliable, ordered byte streams above FIPS datagrams. Applications gain
-connected stream semantics, flow control, and congestion control while the
-remote address remains an authenticated FIPS identity. It suits protocols that
-need a continuous connection; event exchange and hash-addressed blobs can use
-their own higher-level delivery models.
+adds reliable, ordered byte streams above FIPS datagrams. It handles loss,
+retransmission, ordering, flow control, and congestion control so applications
+do not each invent acknowledgements, retries, and “did you get my message?”
+schemes. The remote address remains an authenticated FIPS identity.
+
+The stack uses these streams for Hashtree blob transfers, Iris Chat linked-device
+sync, Iris Drive synchronization control messages, and `nostr-pubsub`
+inventory/want exchanges.
 
 | Example app | Usage |
 | --- | --- |
 | [Nostr VPN](https://nostrvpn.org/) | Uses FIPS identities for private mesh peers, allowing carriers to change without changing the identity referenced by routes and access policy. |
-| [Iris Drive](https://getdrive.iris.to/) | Uses `fips-tcp` for reliable multi-frame Hashtree transfers between authenticated peers, then verifies content by hash above the stream. |
+| [Iris Chat](https://chat.iris.to/) | Uses `fips-tcp` for reliable, ordered linked-device snapshots and control records. |
+| [Iris Drive](https://getdrive.iris.to/) | Uses `fips-tcp` for reliable multi-frame Hashtree transfers and synchronization control messages between authenticated peers, then verifies content by hash above the stream. |
 
 ## 4. Publish-subscribe and discovery
 

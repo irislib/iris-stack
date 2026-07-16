@@ -70,7 +70,9 @@ test('the capability table navigates within the guide', () => {
   assert.match(guide, /Iris Chat.*owner-signed AppKeys roster fact snapshots to authorize and synchronize linked devices/s);
   assert.match(guide, /Iris Contacts.*Keeps one UUID subject/s);
   assert.match(guide, /Nostr VPN.*Uses FIPS identities for private mesh peers/s);
-  assert.match(guide, /Iris Drive.*Uses `fips-tcp` for reliable multi-frame Hashtree transfers/s);
+  assert.match(guide, /do not each invent acknowledgements, retries, and “did you get my message\?”\s+schemes/);
+  assert.match(guide, /Iris Chat.*Uses `fips-tcp` for reliable, ordered linked-device snapshots and control records/s);
+  assert.match(guide, /Iris Drive.*Uses `fips-tcp` for reliable multi-frame Hashtree transfers and synchronization control messages/s);
   assert.match(guide, /Origin server, CDN, or cloud store as content authority/);
   assert.match(guide, /Hash-addressed files and directories/);
   assert.match(guide, /files as blobs and directories as trees/);
