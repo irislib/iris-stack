@@ -43,7 +43,8 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--text);
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -77,54 +78,11 @@ a {
   transform: translateY(0);
 }
 
-.topbar {
-  border-bottom: 1px solid var(--line);
-}
-
-.topbar-inner {
-  display: flex;
-  min-height: 58px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-}
-
-.site-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-decoration: none;
-}
-
-.site-name img {
-  width: 20px;
-  height: 20px;
-}
-
-.topbar nav {
-  display: flex;
-  gap: 18px;
-}
-
-.topbar nav a {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.topbar nav a:hover {
-  color: var(--text);
-}
-
 .doc-layout {
   display: grid;
-  grid-template-columns: 210px minmax(0, 760px);
+  grid-template-columns: 190px minmax(0, 860px);
   justify-content: center;
-  gap: clamp(48px, 7vw, 96px);
+  gap: clamp(36px, 4vw, 64px);
   padding-top: 72px;
   padding-bottom: 120px;
 }
@@ -140,14 +98,8 @@ a {
   font-optical-sizing: auto;
 }
 
-.doc-layout aside nav > span {
-  display: block;
-  margin-bottom: 15px;
-  color: var(--faint);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.toc-toggle {
+  display: none;
 }
 
 .doc-layout aside ol {
@@ -170,13 +122,14 @@ a {
 }
 
 .doc-layout aside li ol a {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 12px;
   white-space: normal;
 }
 
 .doc-layout aside a {
   display: block;
+  position: relative;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.4;
@@ -186,6 +139,21 @@ a {
 
 .doc-layout aside a:hover {
   color: var(--text);
+}
+
+.doc-layout aside a.active {
+  color: var(--text);
+}
+
+.doc-layout aside a.active::before {
+  position: absolute;
+  top: 0.65em;
+  left: -10px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text);
+  content: "";
 }
 
 .markdown {
@@ -198,12 +166,30 @@ a {
 }
 
 .markdown > h1:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.28em;
   margin: 0 0 25px;
   color: var(--text);
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 700;
-  letter-spacing: -0.055em;
+  letter-spacing: -0.02em;
   line-height: 1;
+}
+
+.title-icon {
+  width: 0.72em;
+  height: 0.72em;
+  flex: 0 0 auto;
+}
+
+.markdown > h1:first-child + h2 {
+  margin: 8px 0 25px;
+  color: var(--text);
+  font-size: clamp(1.45rem, 3vw, 1.85rem);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
 }
 
 .markdown > h1:first-child + p {
@@ -211,6 +197,28 @@ a {
   color: var(--text);
   font-size: 22px;
   line-height: 1.48;
+}
+
+.app-catalog {
+  margin: 34px 0 64px;
+}
+
+.app-catalog > a {
+  display: block;
+}
+
+.app-catalog img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+
+.app-catalog figcaption {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .markdown h2,
@@ -300,7 +308,6 @@ a {
   overflow-x: auto;
   margin: 24px 0 32px;
   border-collapse: collapse;
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .markdown th,
@@ -319,6 +326,10 @@ a {
   font-weight: 650;
 }
 
+.table-cell-label {
+  display: none;
+}
+
 .markdown blockquote {
   margin: 24px 0;
   padding-left: 18px;
@@ -326,26 +337,25 @@ a {
 }
 
 footer {
-  border-top: 1px solid var(--line);
+  padding-bottom: 36px;
+  text-align: right;
 }
 
-footer > div {
-  display: flex;
-  min-height: 74px;
-  align-items: center;
-  color: var(--faint);
-  font-size: 10px;
-}
-
-footer span {
+footer a {
   color: var(--muted);
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--text);
 }
 
 @media (max-width: 800px) {
   .doc-layout {
     grid-template-columns: 1fr;
-    gap: 44px;
+    gap: 36px;
     padding-top: 42px;
     padding-bottom: 80px;
   }
@@ -354,33 +364,44 @@ footer span {
     position: static;
   }
 
-  .doc-layout aside nav > span {
-    margin-bottom: 11px;
+  .toc-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border: 0;
+    border-block: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    text-align: left;
+  }
+
+  .toc-toggle::after {
+    color: var(--muted);
+    content: "+";
+    font: 400 16px/1 "Source Serif 4", Georgia, serif;
+  }
+
+  .toc-toggle[aria-expanded="true"]::after {
+    content: "−";
   }
 
   .doc-layout aside nav > ol {
-    display: flex;
-    gap: 15px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    scrollbar-width: thin;
-  }
-
-  .doc-layout aside li + li {
-    margin-top: 0;
-  }
-
-  .doc-layout aside nav > ol > li + li {
-    margin-left: 0;
-  }
-
-  .doc-layout aside li ol {
     display: none;
+    margin-top: 16px;
+  }
+
+  .doc-layout aside nav > ol.toc-open {
+    display: block;
   }
 
   .doc-layout aside a {
-    overflow: visible;
-    white-space: nowrap;
+    white-space: normal;
   }
 
   .markdown h2 {
@@ -389,18 +410,69 @@ footer span {
 
 }
 
-@media (max-width: 480px) {
-  .topbar nav {
-    gap: 13px;
+@media (max-width: 680px) {
+  .markdown table {
+    display: block;
+    overflow: visible;
   }
 
+  .markdown thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .markdown tbody,
+  .markdown tr,
+  .markdown td {
+    display: block;
+    width: 100%;
+  }
+
+  .markdown tbody tr {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .markdown tbody tr:first-child {
+    border-top: 1px solid var(--line);
+  }
+
+  .markdown td {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(5.75rem, 0.75fr) minmax(0, 1.25fr);
+    gap: 12px;
+    padding: 4px 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table-cell-label {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.4;
+  }
+
+  .table-cell-value {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
   .markdown > h1:first-child + p {
     font-size: 17px;
   }
 
-  footer > div {
-    min-height: 62px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
