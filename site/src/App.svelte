@@ -5,6 +5,7 @@
 
   const owner = 'npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm';
   const sourceUrl = `https://git.iris.to/#/${owner}/iris-stack`;
+  const activeHeadingOffset = 24;
   let tocOpen = false;
   let activeTocId = '';
 
@@ -69,16 +70,25 @@
     });
   }
 
-  function updateActiveToc(): void {
-    const viewportCenter = window.innerHeight / 2;
-    let nextActiveId = '';
+  function selectToc(id: string): void {
+    activeTocId = id;
+    tocOpen = false;
+  }
 
-    document.querySelectorAll<HTMLElement>('.heading-anchor').forEach((anchor) => {
+  function updateActiveToc(): void {
+    const anchors = [...document.querySelectorAll<HTMLElement>('.heading-anchor')];
+    let nextActiveId = anchors[0]?.id ?? '';
+
+    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1) {
+      activeTocId = anchors.at(-1)?.id ?? nextActiveId;
+      return;
+    }
+
+    for (const anchor of anchors) {
       const headingTop = anchor.parentElement?.getBoundingClientRect().top;
-      if (headingTop !== undefined && headingTop <= viewportCenter) {
-        nextActiveId = anchor.id;
-      }
-    });
+      if (headingTop === undefined || headingTop > activeHeadingOffset) break;
+      nextActiveId = anchor.id;
+    }
 
     activeTocId = nextActiveId;
   }
@@ -130,11 +140,11 @@
       <ol id="table-of-contents" class:toc-open={tocOpen}>
         {#each chapters as chapter}
           <li>
-            <a href={`#${chapter.id}`} class:active={activeTocId === chapter.id} aria-current={activeTocId === chapter.id ? 'location' : undefined}>{chapter.label}</a>
+            <a href={`#${chapter.id}`} class:active={activeTocId === chapter.id} aria-current={activeTocId === chapter.id ? 'location' : undefined} onclick={() => selectToc(chapter.id)}>{chapter.label}</a>
             {#if chapter.children.length}
               <ol>
                 {#each chapter.children as heading}
-                  <li><a href={`#${heading.id}`} class:active={activeTocId === heading.id} aria-current={activeTocId === heading.id ? 'location' : undefined}>{heading.label}</a></li>
+                  <li><a href={`#${heading.id}`} class:active={activeTocId === heading.id} aria-current={activeTocId === heading.id ? 'location' : undefined} onclick={() => selectToc(heading.id)}>{heading.label}</a></li>
                 {/each}
               </ol>
             {/if}

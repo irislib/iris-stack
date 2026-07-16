@@ -130,6 +130,9 @@ test('the site directly renders the repository-owned Markdown guide', () => {
   assert.match(app, /aria-controls="table-of-contents"/);
   assert.match(app, /aria-current=\{activeTocId === chapter\.id/);
   assert.match(app, /updateActiveToc/);
+  assert.match(app, /activeHeadingOffset = 24/);
+  assert.match(app, /selectToc/);
+  assert.doesNotMatch(app, /viewportCenter/);
   assert.match(app, /dataset\.label/);
   assert.match(app, /class="title-icon"/);
   assert.match(app, /<main id="top"/);

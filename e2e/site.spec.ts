@@ -78,20 +78,24 @@ test('keeps deep links aligned after document rendering', async ({ page }) => {
   }).toBe(true);
 });
 
-test('marks the section occupying the viewport center in the table of contents', async ({ page }) => {
+test('keeps a clicked section active when anchor navigation aligns it to the top', async ({ page }) => {
   await page.goto('/');
 
-  const activeTarget = page.locator('#table-of-contents a[href="#social-graph-as-local-policy"]');
+  const activeTarget = page.locator('#table-of-contents a[href="#nostr-identity-and-signed-events"]');
+  const nextTarget = page.locator('#table-of-contents a[href="#signed-fact-events"]');
   const inactiveMetrics = await activeTarget.evaluate((element) => ({
     fontWeight: getComputedStyle(element).fontWeight,
     height: element.getBoundingClientRect().height,
   }));
 
-  await page.evaluate(() => {
-    document.getElementById('social-graph-as-local-policy')?.parentElement?.scrollIntoView({ block: 'center' });
-  });
+  await activeTarget.click();
 
   await expect(activeTarget).toHaveAttribute('aria-current', 'location');
+  await expect(nextTarget).not.toHaveAttribute('aria-current', 'location');
+  await expect.poll(async () => {
+    const top = await page.locator('#nostr-identity-and-signed-events').evaluate((element) => element.getBoundingClientRect().top);
+    return top >= 0 && top <= 24;
+  }).toBe(true);
   const activeMetrics = await activeTarget.evaluate((element) => ({
     fontWeight: getComputedStyle(element).fontWeight,
     height: element.getBoundingClientRect().height,
