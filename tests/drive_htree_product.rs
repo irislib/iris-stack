@@ -170,22 +170,8 @@ async fn run_product_scenario() -> Result<()> {
         "the actual htree provider did not cache the blob it resolved over HTL"
     );
 
-    drive.send_line(&format!("fetch {second_cid}")).await?;
-    let second = match drive.json_event("fetch").await {
-        Ok(value) => value,
-        Err(error) => {
-            let diagnostics = drive
-                .finish()
-                .await
-                .expect_err("Drive exited cleanly without its fallback fetch event");
-            let remote_output = remote_process.kill().await?;
-            bail!(
-                "{error:#}; Drive diagnostics: {diagnostics:#}; remote stdout:\n{}\nremote stderr:\n{}",
-                remote_output.stdout,
-                remote_output.stderr,
-            );
-        }
-    };
+    wait_for_drive_provider_withdrawal(&mut drive, &remote_udp, &provider_npub).await?;
+    let second = fetch_with_bounded_recovery(&mut drive, &second_cid, &remote_udp).await?;
     assert_fetch(&second, &second_cid, &remote_udp)?;
     ensure!(
         cat_blob(&htree_bin, &provider, &second_cid).await.is_err(),
@@ -201,8 +187,8 @@ async fn run_product_scenario() -> Result<()> {
     replacement_process.line_containing("FIPS: enabled").await?;
     wait_for_drive_provider_replacement(&mut drive, &remote_udp, &provider_npub, &replacement_npub)
         .await?;
-    drive.send_line(&format!("fetch {replacement_cid}")).await?;
-    let replacement_fetch = drive.json_event("fetch").await?;
+    let replacement_fetch =
+        fetch_with_bounded_recovery(&mut drive, &replacement_cid, &remote_udp).await?;
     assert_fetch(&replacement_fetch, &replacement_cid, &remote_udp)?;
     ensure!(
         cat_blob(&htree_bin, &replacement, &replacement_cid).await? == replacement_bytes,
@@ -241,6 +227,58 @@ async fn run_product_scenario() -> Result<()> {
         ready["npub"], provider_npub, replacement_npub, remote_npub
     );
     Ok(())
+}
+
+async fn fetch_with_bounded_recovery(
+    drive: &mut ManagedProcess,
+    cid: &str,
+    remote_udp: &str,
+) -> Result<Value> {
+    const MAX_ATTEMPTS: usize = 6;
+    timeout(Duration::from_secs(60), async {
+        let mut last_error = None;
+        for _ in 0..MAX_ATTEMPTS {
+            drive.send_line(&format!("fetch {cid}")).await?;
+            let result = drive.json_event("fetch").await?;
+            assert_drive_udp(&result, remote_udp)?;
+            if let Some(error) = result.get("error").and_then(Value::as_str) {
+                last_error = Some(error.to_string());
+            } else {
+                return Ok::<_, anyhow::Error>(result);
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        bail!(
+            "Drive standalone route remained unavailable after {MAX_ATTEMPTS} attempts: {}",
+            last_error.unwrap_or_else(|| "unknown transport error".to_string())
+        )
+    })
+    .await
+    .context("Drive did not recover its standalone route after provider death")?
+}
+
+async fn wait_for_drive_provider_withdrawal(
+    drive: &mut ManagedProcess,
+    remote_udp: &str,
+    gone_provider_npub: &str,
+) -> Result<()> {
+    timeout(Duration::from_secs(30), async {
+        loop {
+            drive.send_line("status").await?;
+            let status = drive.json_event("status").await?;
+            let provider_gone = status["same_host_blob_providers"]
+                .as_array()
+                .context("Drive status omitted same-host blob providers")?
+                .iter()
+                .all(|provider| provider != gone_provider_npub);
+            if assert_drive_udp(&status, remote_udp).is_ok() && provider_gone {
+                return Ok::<_, anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .context("Drive did not withdraw the dead provider while preserving its UDP route")?
 }
 
 async fn wait_for_drive_provider_replacement(

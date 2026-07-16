@@ -98,6 +98,7 @@ async fn exercise_anchor_death(anchor_exit: ProcessExit) {
         &[
             &format!("LOCAL_AUTH role=provider configured=false peer={anchor_npub}"),
             "shared_lmdb=true",
+            "shared_pool=true",
         ],
     );
     assert_markers(
@@ -106,6 +107,7 @@ async fn exercise_anchor_death(anchor_exit: ProcessExit) {
             &format!("LOCAL_AUTH role=consumer configured=false peer={anchor_npub}"),
             "BLOB_FETCH phase=before verified=true shared=true",
             "BLOB_FETCH phase=after verified=true shared=true",
+            "shared_pool=true",
         ],
     );
 
@@ -212,6 +214,7 @@ async fn exercise_provider_churn(provider_exit: ProcessExit) {
             "BLOB_SHARED phase=provider-gone verified=true",
             "BLOB_MISS phase=provider-gone truthful=true shared=false",
             "BLOB_FETCH phase=replacement verified=true shared=true",
+            "shared_pool=true",
             "CONSUMER_DONE",
         ],
     );

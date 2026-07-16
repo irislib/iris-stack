@@ -162,10 +162,7 @@ async fn run_anchor(args: ProductArgs) -> Result<()> {
 
 async fn run_provider(args: ProductArgs, data_dir: &Path, blob_phase: Option<&str>) -> Result<()> {
     let endpoint = Arc::new(bind_product(&args).await?);
-    let store = Arc::new(open_shared_lmdb_blob_store(
-        data_dir,
-        SHARED_STORAGE_BUDGET_BYTES,
-    )?);
+    let store = open_shared_pool(data_dir)?;
     let (blob_phases, outbound_phase, reply_port): (&[&str], &str, u16) = match blob_phase {
         None => (&["before", "after"], "before", 49_101),
         Some("first") => (&["first"], "active", 49_111),
@@ -183,7 +180,7 @@ async fn run_provider(args: ProductArgs, data_dir: &Path, blob_phase: Option<&st
     ));
     prove_outbound(&endpoint, &args, "provider", outbound_phase, reply_port).await?;
     report(format!(
-        "PROVIDER_READY {} phase={} shared_lmdb=true outbound=udp",
+        "PROVIDER_READY {} phase={} shared_lmdb=true shared_pool=true outbound=udp",
         endpoint.npub(),
         blob_phase.unwrap_or("legacy")
     ));
@@ -211,10 +208,7 @@ async fn run_consumer(
     initial_state: Option<&str>,
 ) -> Result<()> {
     let endpoint = Arc::new(bind_product(&args).await?);
-    let store = Arc::new(open_shared_lmdb_blob_store(
-        data_dir,
-        SHARED_STORAGE_BUDGET_BYTES,
-    )?);
+    let store = open_shared_pool(data_dir)?;
     let router = shared_blob_router(store.clone())?;
     let anchor = wait_for_fixed_local_peer(&endpoint, args.rendezvous_addr).await?;
     report(format!(
@@ -234,7 +228,7 @@ async fn run_consumer(
         None => bail!("consumer initial state must be ready or empty"),
     }
     report(format!(
-        "CONSUMER_READY {} shared_lmdb=true outbound=udp",
+        "CONSUMER_READY {} shared_lmdb=true shared_pool=true outbound=udp",
         endpoint.npub()
     ));
 
@@ -292,6 +286,15 @@ async fn run_consumer(
     endpoint.shutdown().await?;
     report("CONSUMER_DONE".to_string());
     Ok(())
+}
+
+fn open_shared_pool(data_dir: &Path) -> Result<Arc<ConfiguredLmdbBlobStore>> {
+    let store = open_shared_lmdb_blob_store(data_dir, SHARED_STORAGE_BUDGET_BYTES)?;
+    ensure!(
+        matches!(&store, ConfiguredLmdbBlobStore::Pool(_)),
+        "a fresh canonical same-host store did not open as a pool"
+    );
+    Ok(Arc::new(store))
 }
 
 fn shared_blob_router(store: Arc<ConfiguredLmdbBlobStore>) -> Result<BlobRouter> {

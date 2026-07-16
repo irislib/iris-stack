@@ -10,7 +10,7 @@ on:
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.85
+        default: 0.2.93
         type: string
   workflow_dispatch:
     inputs:
@@ -21,7 +21,7 @@ on:
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.85
+        default: 0.2.93
         type: string
 
 permissions:

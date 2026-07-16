@@ -68,15 +68,15 @@ Hashtree HTL or settlement policy.
 
 | Area | Evidence as of 2026-07-16 | Remaining integration risk |
 | --- | --- | --- |
-| FIPS | Rust 0.4.1 and the matching TypeScript runtime tuple provide authenticated links, fixed loopback UDP rendezvous, capability exchange, routing, and multiple carriers. The same-host identity hint is proved by the ordinary authenticated handshake. Seven repeated Chromium-to-Rust process gates and the unchanged 14-case browser interop suite passed, including forced browser death and reconnection from a replacement page. | Continue cross-carrier churn, bounded-admission, and mobile lifecycle gates. A local peer must never become a mandatory daemon or implicit egress owner. |
+| FIPS | Rust 0.4.5 provides authenticated links, fixed loopback UDP rendezvous, capability exchange, routing, and multiple carriers. The same-host identity hint is proved by the ordinary authenticated handshake. The final bounded native matrix passed 1,971 tests with four skips, plus strict all-target/all-feature clippy and formatting. | Continue cross-carrier churn, bounded-admission, TypeScript parity, and mobile lifecycle gates. A local peer must never become a mandatory daemon or implicit egress owner. |
 | `fips-tcp` | Rust crates 0.2.0 provide reliable ordered streams over FIPS and cross-language wire fixtures. | Reset, retransmission, acknowledgment, backpressure, and long loss/reordering simulations belong here. Application record delivery is a separate semantic layer. |
 | `nostr-pubsub` | Core 0.1.11 and FIPS adapter 0.3.1 share the standard `REQ`/`EVENT`/`CLOSE` service and have simulator, stress, role-blind discovery, and Cashu-incentive gates. | Browser and native consumers must use the shared carrier instead of product-private endpoint namespaces. Offline history remains a storage concern. |
-| Hashtree | Core 0.2.84, FIPS transport 0.4.0, and CLI 0.2.85 use one `BlobRoute` request/reply model. The duplicate raw-datagram FIPS mesh carrier is removed. `hashtree-network` remains the canonical HTL router. | Complete native/TypeScript route parity, then exercise multi-hop HTL, churn, corrupt providers, caching, and paid routes through released artifacts. |
+| Hashtree | Core 0.2.86, LMDB 0.2.84, network 0.2.84, FIPS transport 0.4.5, and CLI 0.2.93 provide one adaptive read-only `BlobRouter` over opaque routes and one application-owned adaptive `PoolStore`. Multiprocess crash/resize/pin/GC, HTL, corruption, provider churn, and TypeScript/native interop gates pass. | Complete the resumable production pool migration and cutover, then keep exercising multi-hop churn and bounded recovery through released artifacts. |
 | Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, exact fact lookup, and the `nostr-identity` 0.4.0 crate exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
 | Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. Its reusable simulation feature starts a real loopback CDK mint with SQLite and covers proof transfer and double-spend rejection. | Compose that foundation into crash-safe, replay-safe paid bandwidth and storage product flows with outage and restart recovery. Mint trust and cross-mint settlement remain explicit policy. |
 | Iris Chat | Native 0.1.36 uses the FIPS 0.4 stack, shared decentralized pub/sub, and paged device synchronization. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
 | Nostr VPN | Its shared FIPS/pub-sub integration preserves explicit application-owned UDP roster links and standalone operation. | Test roster churn concurrently with other local products. Do not delegate VPN routes or roster policy to a same-host process. |
-| Iris Drive | The canonical storage interface and same-host provider path use Hashtree blob routes, while the product retains standalone storage and outbound links. | Finish the native carrier release gate and repeatedly prove large multi-frame retrieval, provider death/replacement, and fallback through the product-owned route. |
+| Iris Drive | Exact consumer commit `3f6726938d08784a21a4cab7e5181b1334755c1c` pins the released adaptive Hashtree/FIPS tuple and keeps its process alive for bounded recovery after a transient fetch failure. The product gate proves provider death and replacement, standalone remote retrieval, and preservation of Drive-owned UDP links. | Keep the released-product gate in the cross-platform matrix and extend it to larger multi-frame trees under sustained churn. |
 | Iris Git | Git data and mutable repository roots already use Hashtree and Nostr. | Treat deeper FIPS discovery and paid repository storage as product integrations, not reasons to fork Hashtree transport or Git object semantics. |
 
 Versions identify the verified native release boundary on the stated date; the
@@ -85,15 +85,20 @@ versions.
 
 ### Reproducible native release evidence
 
-- FIPS Rust `v0.4.1` is commit
-  `5af4f0d02108dcca7b967934230aa6a69abc95fa`. The published `fips-core`
-  0.4.1 crate checksum is
-  `e720d19a0f9b007dad9c03e7e952df8cb79bd0e1a7ab4da1c5cb8c2619cadbe0`;
-  the published `fips-endpoint` 0.4.1 checksum is
-  `7ab3110794075a83a020c61978ea29d990fd68320a43b1b9e388b04abbf202fe`.
-  The seven browser-process passes used the real Rust process and Chromium,
-  sent authenticated FIPS traffic, killed the first browser page, and proved a
-  replacement page could reconnect.
+- FIPS Rust `v0.4.5` is commit
+  `d4499e7ff5e6db3998039a93accd0fc644492ae8`. The published `fips-core`
+  0.4.5 crate checksum is
+  `fd805bf7990f441969502703261c4710672f6fd974f2b681ec68e47700a73c5b`;
+  the published `fips-endpoint` 0.4.5 checksum is
+  `82f5e764d0e04a508b647680ed008a32f89a231ec8a826772c83c21edd441e4e`.
+- Hashtree `v0.2.93` is commit
+  `f0c8ebb89b2b7f75bf9460fb7486b99cf295b2f6`. Published checksums are
+  `574476b1fe122bddc7783ba0346dca42ec673a241128b0edf9e38166c1bb800f`
+  for core 0.2.86,
+  `0b1c1b6ec24b5e1e294f8fe934e5f7b6455a207e5bd1777efc652f51b4bee49a`
+  for LMDB 0.2.84, and
+  `2a6f2540246a6663672a1ad841d1cd76d72e84bf6ede73a8eaea821cf33cfcbc`
+  for CLI 0.2.93.
 - The matching TypeScript release is commit
   `268938c8fe0d35fe4f8fcb3882399291be448897`, tagged `runtime-v0.0.24`:
   core 0.0.24, browser 0.0.6, WebRTC 0.0.40, Ethernet 0.0.23, and memory

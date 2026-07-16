@@ -10,9 +10,9 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-fips-core = "=0.4.1"
-hashtree-core = "0.2.85"
-hashtree-lmdb = "0.2.83"
+fips-core = "=0.4.5"
+hashtree-core = "0.2.86"
+hashtree-lmdb = "0.2.84"
 hashtree-network = "0.2.84"
 tokio = { version = "1", features = ["io-util", "io-std", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }
 

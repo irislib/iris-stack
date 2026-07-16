@@ -20,8 +20,8 @@ anchor <==== authenticated loopback FIPS ====> provider
    ^                                              ^
    +======== authenticated loopback FIPS ========+-- consumer
 
-provider Store.put ======> shared LMDB <====== consumer BlobRouter.get
-replacement Store.put ========^
+provider Store.put ======> shared PoolStore <====== consumer BlobRouter.get
+replacement Store.put ============^
 ```
 
 The first local process exclusively binds an isolated loopback UDP address.
@@ -31,17 +31,15 @@ The lab treats that exchange as a black box.
 
 Provider, consumer, and replacement processes independently open one configured
 Hashtree data directory through the canonical shared-LMDB opener, with an
-identical storage budget. Providers write immutable blobs explicitly through
-their application-owned `Store`. The consumer reads through a production
-`BlobRouter` containing an ordinary `StoreBlobRoute`; the router performs the
-central hash check. FIPS is not in this local read path and no local process is
-a mandatory daemon. This direct sharing applies to immutable blob bytes only;
-the lab does not treat mutable product metadata, identities, indexes, or pin/GC
-policy as implicitly shareable application state.
-
-When Hashtree config selects hot and legacy LMDB tiers, the configured store
-owns that tier selection and is still registered with the outer router as one
-opaque route.
+identical storage budget. A fresh directory must open as one `PoolStore`; each
+process sees the pool as one application-owned `Store`, while the pool alone owns
+member placement and adaptation. Providers write immutable blobs explicitly
+through that store. The consumer reads through a production `BlobRouter`
+containing an ordinary `StoreBlobRoute`; the router performs the central hash
+check. FIPS is not in this local read path and no local process is a mandatory
+daemon. This direct sharing applies to immutable blob bytes plus the pool's
+explicit transactional catalog. The lab does not treat product metadata,
+identities, or indexes as implicitly shareable application state.
 
 ## Failure matrices
 
@@ -68,9 +66,9 @@ evidence that a product composes the released pieces correctly. The explicit
 `drive_htree_product` gate starts these real processes:
 
 The checked-in Rust lockfile pins the substrate gate to the published
-`fips-core` 0.4.1, `fips-tcp` 0.2.0, and `hashtree-fips-transport` 0.4.0
-artifacts. Product fixtures and the `htree` executable are supplied as exact
-coordinates at run time.
+`fips-core` 0.4.5 and `fips-tcp` 0.2.0 artifacts. The released `htree`
+executable supplies `hashtree-fips-transport` 0.4.5. Product fixtures and the
+`htree` executable are supplied as exact coordinates at run time.
 
 ```text
 remote htree (released CLI, owns UDP FIPS link)

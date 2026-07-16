@@ -11,7 +11,7 @@ if [ -n "${IRIS_STACK_HTREE_BIN:-}" ]; then
     exit 1
   }
 else
-  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.85}
+  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.93}
   cargo install \
     --locked \
     --root "$install_root" \
