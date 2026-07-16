@@ -28,7 +28,8 @@ Nostr identity and Cashu settlement cross every layer.
 | [1 · datagrams](#fips-authenticated-datagrams) | FIPS | Authenticated datagrams addressed by self-generated public keys, encrypted links, carrier adapters, discovery, routing, and admission | Hierarchically allocated or location-dependent addressing (domain names and IP addresses), plus transport-specific authentication and routing |
 | [2 · streams](#reliable-streams-with-fips-tcp) | `fips-tcp` | Reliable ordered delivery over FIPS | TCP streams bound to IP endpoints |
 | [3a · publish-subscribe](#nostr-pubsub-publish-subscribe) | `nostr-pubsub` | Subscriptions, signed-event exchange, deduplication, source selection, and real-time policy | Central message broker |
-| [3b · content](#hashtree-blobs-and-routes) | Hashtree | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
+| [3b · private messaging](#asynchronous-private-messaging-with-nostr-double-ratchet) | `nostr-double-ratchet` | Forward-secure 1:1 sessions, sender-key groups, and asynchronous encrypted Nostr events | Always-online encrypted connection or platform messaging service |
+| [3c · content](#hashtree-blobs-and-routes) | Hashtree | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
 | [4a · indexes](#hashtree-indexes-for-large-datasets) | `@hashtree/index` and `@hashtree/collection` | Immutable B-trees, canonical records, derived search roots, collection manifests, and local or federated reads | Central database, search service, relay index, or platform API |
 | [4b · social context](#social-graph-as-local-policy) | `nostr-social-graph` | Graph traversal, fact events, viewer-local naming, moderation, reputation, and resource-policy inputs | Central profile, ACL, moderation, or reputation database |
 | [Settlement plane](#cashu-service-layer) | Cashu service layer | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
@@ -106,7 +107,22 @@ The same event plane also carries social posts, app updates, repository
 announcements, and service offers. Events announce large content by hash;
 Hashtree routes carry the bytes.
 
-### 3.3 Peer discovery from one FIPS link
+### 3.3 Asynchronous private messaging with nostr-double-ratchet
+
+[`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet)
+encrypts 1:1 messages with NIP-44 and Double Ratchet, supports multi-device
+identities, and uses per-sender key chains for groups. Its ciphertexts are Nostr
+events, so `nostr-pubsub` routes can carry, retain, and replay them. Sender and
+recipient need not be online at the same time, unlike a live FIPS datagram or
+stream; asynchronous delivery still requires at least one route to retain the
+event until it is fetched.
+
+This design is pairwise-ratchet-first: group sender keys are distributed over
+authenticated pairwise sessions. [Marmot](https://github.com/marmot-protocol/marmot)
+instead uses MLS as a continuous group key-agreement and membership-state
+protocol.
+
+### 3.4 Peer discovery from one FIPS link
 
 An authenticated FIPS connection is a bootstrap path. Through
 `nostr-pubsub-fips`, an application sends an ordinary Nostr subscription and
@@ -123,7 +139,7 @@ transport endpoint can I connect FIPS to?* Capability adverts also answer
 and local author, social, capability, and resource policy decides admission.
 Relays, indexes, and other pub/sub routes can answer the same request.
 
-### 3.4 Social graph as local policy
+### 3.5 Social graph as local policy
 
 [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
 turns follows, mutes, signed facts, and ratings into viewer-relative signals.
@@ -153,7 +169,7 @@ fetch for socially close or reputable peers first; a FIPS host can reserve
 connection slots or bandwidth for them. Each node controls this scheduling and
 can reserve capacity for unfamiliar peers.
 
-### 3.5 Human names without a global namespace
+### 3.6 Human names without a global namespace
 
 Cryptographic keys are secure addresses but poor human names. Naming is a
 signed search problem:

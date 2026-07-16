@@ -124,12 +124,21 @@
     {
       "id": "nostr-double-ratchet",
       "kind": "capability-core",
-      "repository": "https://github.com/irislib/nostr-double-ratchet",
+      "repositories": {
+        "canonical": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet",
+        "github": "https://github.com/irislib/nostr-double-ratchet"
+      },
       "depends_on": [
         "nostr"
       ],
       "owns": [
-        "private-message ratchet cryptography"
+        "forward-secure 1:1 Double Ratchet sessions",
+        "multi-device session routing",
+        "group sender-key chains",
+        "encrypted Nostr message events"
+      ],
+      "optional_integrations": [
+        "nostr-pubsub"
       ]
     },
     {
