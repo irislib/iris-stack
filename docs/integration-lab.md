@@ -54,7 +54,7 @@ evidence that a product composes the released pieces correctly. The explicit
 `drive_htree_product` gate starts these real processes:
 
 The checked-in Rust lockfile pins the substrate gate to the published
-`fips-core` 0.4.1, `fips-tcp` 0.2.0, and `hashtree-fips-transport` 0.4.0
+`fips-core` 0.4.4, `fips-tcp` 0.2.0, and `hashtree-fips-transport` 0.4.3
 artifacts. Product fixtures and the `htree` executable are supplied as exact
 coordinates at run time.
 
@@ -100,8 +100,8 @@ cargo fmt --check
 
 The released-product gate is ignored by ordinary `cargo test` because it
 installs and runs external artifacts. Run it with an exact public Iris Drive
-commit; Hashtree is installed from the exact registry version unless a binary
-is supplied explicitly:
+commit; `hashtree-cli` 0.2.88 is installed from the registry unless a binary is
+supplied explicitly:
 
 ```sh
 IRIS_STACK_DRIVE_REV=<exact-commit> \

@@ -1,7 +1,6 @@
 {
   "name": "iris-stack-site",
   "version": "0.1.0",
-  "license": "0BSD",
   "private": true,
   "description": "Developer guide to the permissionless Iris Stack",
   "repository": "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-stack",
