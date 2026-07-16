@@ -28,7 +28,7 @@ applications. Nostr identity and payments cross every layer.
 | [1 · datagrams](#fips-authenticated-datagrams) | [FIPS](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips) | Authenticated datagrams addressed by self-generated public keys, encrypted links, carrier adapters, discovery, routing, and admission | Hierarchically allocated or location-dependent addressing (domain names and IP addresses), plus transport-specific authentication and routing |
 | [2 · streams](#reliable-streams-with-fips-tcp) | [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp) | Reliable ordered delivery over FIPS | TCP streams bound to IP endpoints |
 | [3a · publish-subscribe](#nostr-pubsub-publish-subscribe) | [`nostr-pubsub`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub) | Subscriptions, signed-event exchange, deduplication, source selection, and real-time policy | Central message broker |
-| [3b · private messaging](#nostr-double-ratchet) | [`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet) | Forward-secure 1:1 sessions, sender-key groups, and asynchronous encrypted Nostr events | Always-online encrypted connection or platform messaging service |
+| [3b · private conversations](#nostr-double-ratchet) | [`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet) | End-to-end encrypted 1:1 and group Nostr events, multi-device sessions, and asynchronous delivery | Platform messaging service or always-online encrypted connection |
 | [3c · content](#hashtree-blobs-and-routes) | [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree) | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
 | [4a · indexes](#hashtree-indexes-for-large-datasets) | [`@hashtree/index`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-index) and [`@hashtree/collection`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-collection) | Immutable B-trees, canonical records, derived search roots, collection manifests, and local or federated reads | Central database, search service, relay index, or platform API |
 | [4b · social context](#social-graph-as-local-policy) | [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph) | Graph traversal, fact events, viewer-local naming, moderation, reputation, and resource-policy inputs | Central profile, ACL, moderation, or reputation database |
@@ -56,8 +56,9 @@ new event type for every data model. The signature proves who made a claim, not
 that the claim is universally true.
 
 The [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
-identity tools add UUID-based rosters and facts that preserve an identity across
-keys and devices.
+identity tools use UUID-based rosters and facts so an identity is not tied to a
+single key. If a key is lost or compromised, social-graph attestations can
+associate a replacement key with the same UUID, preserving the identity.
 
 | Example app | Usage |
 | --- | --- |
@@ -87,16 +88,20 @@ service datagrams directly.
 ### 3.2 Reliable streams with fips-tcp
 
 [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp)
-adds reliable, ordered byte streams above FIPS datagrams. Applications gain
-connected stream semantics, flow control, and congestion control while the
-remote address remains an authenticated FIPS identity. It suits protocols that
-need a continuous connection; event exchange and hash-addressed blobs can use
-their own higher-level delivery models.
+adds reliable, ordered byte streams above FIPS datagrams. It handles loss,
+retransmission, ordering, flow control, and congestion control so applications
+do not each invent acknowledgements, retries, and “did you get my message?”
+schemes. The remote address remains an authenticated FIPS identity.
+
+The stack uses these streams for Hashtree blob transfers, Iris Chat linked-device
+sync, Iris Drive synchronization control messages, and `nostr-pubsub`
+inventory/want exchanges.
 
 | Example app | Usage |
 | --- | --- |
 | [Nostr VPN](https://nostrvpn.org/) | Uses FIPS identities for private mesh peers, allowing carriers to change without changing the identity referenced by routes and access policy. |
-| [Iris Drive](https://getdrive.iris.to/) | Uses `fips-tcp` for reliable multi-frame Hashtree transfers between authenticated peers, then verifies content by hash above the stream. |
+| [Iris Chat](https://chat.iris.to/) | Uses `fips-tcp` for reliable, ordered linked-device snapshots and control records. |
+| [Iris Drive](https://getdrive.iris.to/) | Uses `fips-tcp` for reliable multi-frame Hashtree transfers and synchronization control messages between authenticated peers, then verifies content by hash above the stream. |
 
 ## 4. Publish-subscribe and discovery
 
@@ -146,17 +151,25 @@ the same query; no source is mandatory.
 | [Iris Chat](https://chat.iris.to/) | Uses peer-to-peer pub/sub for live message subscriptions while retaining optional relay routes. |
 | [Nostr VPN](https://nostrvpn.org/) | Publishes peer, route, and service announcements; an exit node can advertise both its reachable FIPS identity and its offered service. |
 
-## 5. Private messaging
+## 5. Private conversations
 
 ### 5.1 nostr-double-ratchet
 
 [`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet)
-encrypts 1:1 messages with NIP-44 and Double Ratchet, supports multi-device
-identities, and uses per-sender key chains for groups. Its ciphertexts are Nostr
-events, so `nostr-pubsub` routes can carry, retain, and replay them. Sender and
-recipient need not be online at the same time, unlike a live FIPS datagram or
-stream; asynchronous delivery still requires at least one route to retain the
-event until it is fetched.
+provides end-to-end encrypted 1:1 and group conversations over Nostr. Direct
+sessions use Double Ratchet, protecting earlier messages if a current key is
+compromised and recovering future secrecy after fresh ratchet steps. Groups use
+per-sender key chains, and AppKeys authorize multiple devices for one identity.
+
+Ciphertexts are Nostr events, so `nostr-pubsub` peers and ordinary relays can
+carry and retain them when participants are not online together. The encrypted
+payload can be any app-defined Nostr event—not only a chat line—making the same
+primitive useful for private social posts, shared records, and other
+group-scoped data.
+
+| Example app | Usage |
+| --- | --- |
+| [Iris Chat](https://chat.iris.to/) | Uses 1:1 ratchets and group sender keys for encrypted messages across authorized devices, with Nostr routes supporting asynchronous delivery. |
 
 This design is pairwise-ratchet-first: group sender keys are distributed over
 authenticated pairwise sessions. [Marmot](https://github.com/marmot-protocol/marmot)

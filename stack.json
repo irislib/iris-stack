@@ -76,10 +76,9 @@
         "nostr"
       ],
       "owns": [
-        "forward-secure 1:1 Double Ratchet sessions",
-        "multi-device session routing",
-        "group sender-key chains",
-        "encrypted Nostr message events"
+        "end-to-end encrypted 1:1 Nostr events",
+        "group sender-key encryption",
+        "multi-device session and key management"
       ],
       "optional_integrations": [
         "nostr-pubsub"
@@ -193,12 +192,12 @@
       ],
       "intended_capabilities": [
         "nostr",
-        "nostr-social-graph",
-        "nostr-pubsub",
-        "nostr-double-ratchet",
         "fips",
         "fips-tcp",
-        "hashtree"
+        "nostr-pubsub",
+        "nostr-double-ratchet",
+        "hashtree",
+        "nostr-social-graph"
       ]
     },
     {

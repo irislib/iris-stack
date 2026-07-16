@@ -147,7 +147,7 @@ different enough that a monorepo would hide rather than remove coupling.
 | `fips` / `fips-ts` | Public-key-addressed links, Noise authentication, carriers, routing, discovery, admission, authenticated capability roster | Reliable application streams, blob HTL, event subscription policy, product egress policy |
 | `fips-tcp` | Reliable ordered byte streams and their Rust/TypeScript wire contract | Product record schemas or application commit semantics |
 | `nostr-pubsub` | Nostr subscription/event protocol, source policy, deduplication, carrier adapters | Blob transfer, durable mailbox/history, product-specific event formats |
-| `nostr-double-ratchet` | Private-message ratchet cryptography | General event distribution, product conversation state, or UI |
+| `nostr-double-ratchet` | End-to-end encrypted 1:1 sessions, group sender keys, and multi-device session management | General event distribution, product conversation state, or UI |
 | `hashtree` | Blob/tree formats, verification, cache policy, `BlobRoute`, HTL forwarding, Git/release data, and paid route wrappers | FIPS link routing, Nostr event distribution, product UI |
 | `@hashtree/index` / `@hashtree/collection` | Immutable B-tree indexes, canonical records, derived search roots, and collection manifests | Source completeness, global query policy, or mutable database authority |
 | `nostr-social-graph` | Signed fact interpretation, graph traversal, contextual names, reputation and policy inputs | A global name registry or global trust score |
@@ -169,6 +169,7 @@ an unrelated layer.
 | `fips` | Noise identity proof; capability authenticity; route and carrier churn; fixed-loopback bind/rebind; admission/resource bounds; every app retaining independent direct links |
 | `fips-tcp` | Loss, duplication, reordering, reset, marker acknowledgment, flow control, concurrent streams, bounded buffers, and Rust/TypeScript vectors/process interop |
 | `nostr-pubsub` | Codec vectors; inventory/want convergence; deduplication; role-blind discovery; malicious peers; simulator scale; real FIPS and Cashu adapters |
+| `nostr-double-ratchet` | TypeScript/Rust interop; 1:1 ratchet recovery; group sender-key rotation; multi-device authorization; replay and malformed-event handling |
 | `hashtree` | Local hit/miss; exact HTL decrement; multi-hop and cycles; bounded fan-out; route-local `NoResult`; timeout/error distinction; corrupt reply rejection; cache population; provider replacement; paid route behavior |
 | `nostr-social-graph` | Deterministic graph and fact interpretation; key/device binding; local-policy boundaries; malicious or conflicting claims |
 | `cashu-service` | Credit limits; idempotent receipts; double-spend/replay rejection; partial settlement; mint outage; restart recovery; real local-mint processes |
