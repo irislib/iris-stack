@@ -66,6 +66,22 @@
       ]
     },
     {
+      "id": "nostr-double-ratchet",
+      "kind": "capability-core",
+      "repository": "https://github.com/irislib/nostr-double-ratchet",
+      "depends_on": [
+        "nostr"
+      ],
+      "owns": [
+        "end-to-end encrypted 1:1 Nostr events",
+        "group sender-key encryption",
+        "multi-device session and key management"
+      ],
+      "optional_integrations": [
+        "nostr-pubsub"
+      ]
+    },
+    {
       "id": "hashtree",
       "kind": "capability-core",
       "repository": "https://github.com/mmalmi/hashtree",
@@ -122,17 +138,6 @@
       ]
     },
     {
-      "id": "nostr-double-ratchet",
-      "kind": "capability-core",
-      "repository": "https://github.com/irislib/nostr-double-ratchet",
-      "depends_on": [
-        "nostr"
-      ],
-      "owns": [
-        "private-message ratchet cryptography"
-      ]
-    },
-    {
       "id": "iris-kit",
       "kind": "shared-integration",
       "repository": "https://github.com/mmalmi/iris-kit",
@@ -181,10 +186,11 @@
       ],
       "intended_capabilities": [
         "nostr",
-        "nostr-social-graph",
+        "fips",
+        "fips-tcp",
         "nostr-pubsub",
         "nostr-double-ratchet",
-        "fips"
+        "nostr-social-graph"
       ]
     },
     {

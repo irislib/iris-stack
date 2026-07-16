@@ -28,7 +28,8 @@ applications. Nostr identity and payments cross every layer.
 | [1 · datagrams](#fips-authenticated-datagrams) | FIPS | Authenticated datagrams addressed by self-generated public keys, encrypted links, carrier adapters, discovery, routing, and admission | Hierarchically allocated or location-dependent addressing (domain names and IP addresses), plus transport-specific authentication and routing |
 | [2 · streams](#reliable-streams-with-fips-tcp) | `fips-tcp` | Reliable ordered delivery over FIPS | TCP streams bound to IP endpoints |
 | [3a · publish-subscribe](#nostr-pubsub-publish-subscribe) | `nostr-pubsub` | Subscriptions, signed-event exchange, deduplication, source selection, and real-time policy | Central message broker |
-| [3b · content](#hashtree-blobs-and-routes) | Hashtree | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
+| [3b · private conversations](#nostr-double-ratchet) | `nostr-double-ratchet` | End-to-end encrypted 1:1 and group Nostr events, multi-device sessions, and asynchronous delivery | Platform messaging service or always-online encrypted connection |
+| [3c · content](#hashtree-blobs-and-routes) | Hashtree | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
 | [4a · indexes](#hashtree-indexes-for-large-datasets) | `@hashtree/index` and `@hashtree/collection` | Immutable B-trees, canonical records, derived search roots, collection manifests, and local or federated reads | Central database, search service, or relay index |
 | [4b · social context](#social-graph-as-local-policy) | `nostr-social-graph` | Graph traversal, fact events, viewer-local naming, moderation, reputation, and resource-policy inputs | Central profile, ACL, moderation, or reputation database |
 | [Payments](#payments) | `cashu-service` | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
@@ -150,9 +151,29 @@ the same query; no source is mandatory.
 | [Iris Chat](https://chat.iris.to/) | Uses peer-to-peer pub/sub for live message subscriptions while retaining optional relay routes. |
 | [Nostr VPN](https://nostrvpn.org/) | Publishes peer, route, and service announcements; an exit node can advertise both its reachable FIPS identity and its offered service. |
 
-## 5. Verifiable content and indexes
+## 5. Private conversations
 
-### 5.1 Hashtree blobs and routes
+### 5.1 nostr-double-ratchet
+
+[`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet)
+provides end-to-end encrypted 1:1 and group conversations over Nostr. Direct
+sessions use Double Ratchet, protecting earlier messages if a current key is
+compromised and recovering future secrecy after fresh ratchet steps. Groups use
+per-sender key chains, and AppKeys authorize multiple devices for one identity.
+
+Ciphertexts are Nostr events, so `nostr-pubsub` peers and ordinary relays can
+carry and retain them when participants are not online together. The encrypted
+payload can be any app-defined Nostr event—not only a chat line—making the same
+primitive useful for private social posts, shared records, and other
+group-scoped data.
+
+| Example app | Usage |
+| --- | --- |
+| [Iris Chat](https://chat.iris.to/) | Uses 1:1 ratchets and group sender keys for encrypted messages across authorized devices, with Nostr routes supporting asynchronous delivery. |
+
+## 6. Verifiable content and indexes
+
+### 6.1 Hashtree blobs and routes
 
 [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree)
 stores files as blobs and directories as trees, each addressed and verified by
@@ -173,7 +194,7 @@ through that interface. Every response is verified against the requested hash.
 A route miss leaves the other routes available. `nostr-pubsub` announces
 content; Hashtree routes carry the blobs.
 
-### 5.2 Hashtree indexes for large datasets
+### 6.2 Hashtree indexes for large datasets
 
 - [`@hashtree/index`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-index)
   stores immutable B-trees for exact, range, prefix, and lightweight text
@@ -188,7 +209,7 @@ This supports reproducible Nostr-relay-like read projections. The publisher
 defines the available queries and update cadence; applications can query or
 federate several compatible publishers.
 
-### 5.3 Web apps and updates as verified trees
+### 6.3 Web apps and updates as verified trees
 
 A static web app can be published as a Hashtree directory. Its `nhash`
 identifies one immutable version; a signed `npub/tree` name can advance to a
@@ -211,9 +232,9 @@ with relay, Blossom, and HTTPS compatibility routes available.
 | [Iris Audio](https://audio.iris.to/) | Queries shared song, artist, and album collection/search roots directly from the browser. |
 | [Iris Sites](https://apps.iris.to/) | Catalogs and launches web apps whose signed roots identify versions and whose Hashtree hashes verify the bytes. |
 
-## 6. Social context and contextual naming
+## 7. Social context and contextual naming
 
-### 6.1 Social graph as local policy
+### 7.1 Social graph as local policy
 
 [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
 turns follows, mutes, signed facts, and ratings into viewer-relative signals.
@@ -241,7 +262,7 @@ These signals can guide resource scheduling: Hashtree can prioritize socially
 close or reputable peers, while FIPS can reserve connection slots or bandwidth.
 Each node controls its schedule and can reserve capacity for unfamiliar peers.
 
-### 6.2 Human names without a global namespace
+### 7.2 Human names without a global namespace
 
 Cryptographic keys are secure addresses but poor human names. Naming is a
 signed search problem:
@@ -274,7 +295,7 @@ multiple keys.
 | [Iris Contacts](https://contacts.iris.to/) | Combines profiles, graph-ranked search, contextual names, and UUID-backed contacts encoded as fact snapshots. |
 | [Iris Drive](https://getdrive.iris.to/) | Uses social context to rank profiles, search results, sharing contacts, and candidate providers. |
 
-## 7. Payments
+## 8. Payments
 
 [`cashu-service`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service)
 provides [Cashu](https://cashu.space/) token transfer and settlement together
@@ -290,7 +311,7 @@ reciprocal routes remain available.
 | --- | --- |
 | [Nostr VPN](https://nostrvpn.org/) | Lets an exit node charge for forwarded traffic and settle the balance with Cashu. |
 
-## 8. Products
+## 9. Products
 
 More apps are listed at [apps.iris.to](https://apps.iris.to/).
 
@@ -304,7 +325,7 @@ More apps are listed at [apps.iris.to](https://apps.iris.to/).
 | Iris Sites | A launcher and isolated browser runtime for web apps published as Hashtree trees | [App catalog](https://apps.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites) |
 | Iris Git | Git repositories addressed through Nostr and Hashtree instead of one forge account or origin server | [Web app](https://git.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-git) |
 
-## 9. Repository index
+## 10. Repository index
 
 | Component | Source |
 | --- | --- |

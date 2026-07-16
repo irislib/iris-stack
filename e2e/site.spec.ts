@@ -20,12 +20,13 @@ test('renders the public architecture Markdown', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '2.2 Signed fact events' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '4.1 nostr-pubsub publish-subscribe' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '4.2 Signed peer and service discovery' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '5.2 Hashtree indexes for large datasets' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '5.3 Web apps and updates as verified trees' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '6.1 Social graph as local policy' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '6.2 Human names without a global namespace' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '7. Payments' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '8. Products' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5.1 nostr-double-ratchet' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '6.2 Hashtree indexes for large datasets' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '6.3 Web apps and updates as verified trees' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '7.1 Social graph as local policy' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '7.2 Human names without a global namespace' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '8. Payments' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '9. Products' })).toBeVisible();
   await expect(page.locator('.mermaid')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Product page' }).first()).toHaveAttribute('href', 'https://irischat.org/');
   await expect(page.locator('.hero')).toHaveCount(0);
@@ -56,7 +57,7 @@ test('keeps the document usable on a narrow phone viewport', async ({ page }) =>
   const contents = page.getByRole('button', { name: 'Contents' });
   await expect(contents).toBeVisible();
   await expect(contents).toHaveAttribute('aria-expanded', 'false');
-  const subsection = page.getByRole('link', { name: '5.2 Hashtree indexes for large datasets' });
+  const subsection = page.getByRole('link', { name: '6.2 Hashtree indexes for large datasets' });
   await expect(subsection).toBeHidden();
   await contents.click();
   await expect(contents).toHaveAttribute('aria-expanded', 'true');
@@ -80,7 +81,7 @@ test('keeps the document usable on a narrow phone viewport', async ({ page }) =>
 test('keeps deep links aligned after document rendering', async ({ page }) => {
   await page.goto('/#hashtree-indexes-for-large-datasets');
 
-  const heading = page.getByRole('heading', { name: '5.2 Hashtree indexes for large datasets' });
+  const heading = page.getByRole('heading', { name: '6.2 Hashtree indexes for large datasets' });
   await expect.poll(async () => {
     const top = await heading.evaluate((element) => element.getBoundingClientRect().top);
     return top >= 0 && top <= 120;

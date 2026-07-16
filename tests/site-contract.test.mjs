@@ -47,12 +47,13 @@ test('the public site connects the architecture to live products', () => {
 test('the capability table navigates within the guide', () => {
   assert.match(guide, /^\| Position \| Component \| Role \| Replaces \|$/m);
   assert.match(guide, /^\| Product \| Function \| Links \|$/m);
-  assert.equal((guide.match(/^\| Example app \| Usage \|$/gm) ?? []).length, 6);
+  assert.equal((guide.match(/^\| Example app \| Usage \|$/gm) ?? []).length, 7);
   for (const chapter of [
     '#nostr-identity-and-signed-events',
     '#fips-authenticated-datagrams',
     '#reliable-streams-with-fips-tcp',
     '#nostr-pubsub-publish-subscribe',
+    '#nostr-double-ratchet',
     '#hashtree-blobs-and-routes',
     '#hashtree-indexes-for-large-datasets',
     '#social-graph-as-local-policy',
@@ -73,6 +74,9 @@ test('the capability table navigates within the guide', () => {
   assert.match(guide, /do not each invent acknowledgements, retries, and “did you get my message\?”\s+schemes/);
   assert.match(guide, /Iris Chat.*Uses `fips-tcp` for reliable, ordered linked-device snapshots and control records/s);
   assert.match(guide, /Iris Drive.*Uses `fips-tcp` for reliable multi-frame Hashtree transfers and synchronization control messages/s);
+  assert.match(guide, /payload can be any app-defined Nostr event—not only a chat line/);
+  assert.match(guide, /private social posts, shared records, and other\s+group-scoped data/);
+  assert.match(guide, /Iris Chat.*Uses 1:1 ratchets and group sender keys/s);
   assert.match(guide, /Origin server, CDN, or cloud store as content authority/);
   assert.match(guide, /Hash-addressed files and directories/);
   assert.match(guide, /files as blobs and directories as trees/);
@@ -87,11 +91,12 @@ test('the guide body follows the capability order', () => {
     '## 2. Identity',
     '## 3. Connectivity',
     '## 4. Publish-subscribe and discovery',
-    '## 5. Verifiable content and indexes',
-    '## 6. Social context and contextual naming',
-    '## 7. Payments',
-    '## 8. Products',
-    '## 9. Repository index',
+    '## 5. Private conversations',
+    '## 6. Verifiable content and indexes',
+    '## 7. Social context and contextual naming',
+    '## 8. Payments',
+    '## 9. Products',
+    '## 10. Repository index',
   ];
   const positions = orderedHeadings.map((heading) => guide.indexOf(heading));
   assert(positions.every((position) => position >= 0), 'expected every capability-ordered guide chapter');
@@ -108,12 +113,12 @@ test('repository ownership follows the capability order before support component
     '| `fips` / `fips-ts` |',
     '| `fips-tcp` |',
     '| `nostr-pubsub` |',
+    '| `nostr-double-ratchet` |',
     '| `hashtree` |',
     '| `@hashtree/index` / `@hashtree/collection` |',
     '| `nostr-social-graph` |',
     '| `cashu-service` |',
     '| Product repositories |',
-    '| `nostr-double-ratchet` |',
     '| `iris-kit` |',
     '| `iris-stack` |',
   ];
@@ -207,12 +212,14 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /Zooko's original naming essay/);
   assert.match(guide, /Introduction to Petname Systems/);
   assert.match(guide, /Hashtree indexes for large datasets/);
+  assert.match(guide, /nostr-double-ratchet/);
+  assert.match(guide, /protecting earlier messages if a current key is\s+compromised and recovering future secrecy/);
   assert.match(guide, /Web apps and updates as verified trees/);
   assert.match(guide, /hashtree-updater/);
   assert.match(guide, /Hashtree routes/);
   assert.match(guide, /\[Cashu\]\(https:\/\/cashu\.space\/\) token transfer/);
-  assert.match(guide, /^## 7\. Payments$/m);
-  assert.doesNotMatch(guide, /^## 7\. (?:Settlement|Cashu service layer)$|^### 7\.1 /m);
+  assert.match(guide, /^## 8\. Payments$/m);
+  assert.doesNotMatch(guide, /^## 8\. (?:Settlement|Cashu service layer)$|^### 8\.1 /m);
   assert.doesNotMatch(guide, /Identity plane|Payment plane|Settlement plane/);
   assert.match(guide, /Nostr VPN.*Lets an exit node charge for forwarded traffic/s);
   assert.match(guide, /public exit-node marketplace/);
@@ -228,7 +235,7 @@ test('the public guide keeps architecture prose and private operations out', () 
 });
 
 test('the machine-readable stack keeps the capabilities used by the visual map', () => {
-  const orderedIds = ['nostr', 'fips', 'fips-tcp', 'nostr-pubsub', 'hashtree', 'nostr-social-graph', 'cashu-service'];
+  const orderedIds = ['nostr', 'fips', 'fips-tcp', 'nostr-pubsub', 'nostr-double-ratchet', 'hashtree', 'nostr-social-graph', 'cashu-service'];
   const componentIds = stack.components.map(({ id }) => id);
   for (const id of orderedIds) {
     assert(componentIds.includes(id), `expected stack.json component ${id}`);
@@ -236,4 +243,8 @@ test('the machine-readable stack keeps the capabilities used by the visual map',
   const positions = orderedIds.map((id) => componentIds.indexOf(id));
   assert(positions.every((position, index) => index === 0 || position > positions[index - 1]), 'expected stack.json components in capability order');
   assert(stack.components.find(({ id }) => id === 'hashtree').owns.includes('content-addressed B-tree and collection indexes'));
+  assert.deepEqual(
+    stack.products.find(({ id }) => id === 'iris-chat').intended_capabilities,
+    ['nostr', 'fips', 'fips-tcp', 'nostr-pubsub', 'nostr-double-ratchet', 'nostr-social-graph'],
+  );
 });
