@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -8,24 +8,39 @@ const stack = JSON.parse(readFileSync(resolve(root, 'stack.json'), 'utf8'));
 const guide = readFileSync(resolve(root, 'docs/iris-stack.md'), 'utf8');
 const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
 const siteApp = readFileSync(resolve(root, 'site/src/App.svelte'), 'utf8');
+const siteIndex = readFileSync(resolve(root, 'site/index.html'), 'utf8');
+const cargoManifest = readFileSync(resolve(root, 'Cargo.toml'), 'utf8');
+const packageMetadata = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 const nativeWorkflow = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8');
 const productWorkflow = readFileSync(resolve(root, '.github/workflows/product-lab.yml'), 'utf8');
 const vpnLab = readFileSync(resolve(root, 'scripts/vpn-product-lab.sh'), 'utf8');
 const vpnWorkflow = readFileSync(resolve(root, '.github/workflows/vpn-product-lab.yml'), 'utf8');
 
 test('the machine-readable stack includes the documented capability layers', () => {
-  const componentIds = new Set(stack.components.map(({ id }) => id));
-  for (const id of [
+  const orderedIds = [
     'nostr',
     'fips',
     'fips-tcp',
     'nostr-pubsub',
+    'nostr-double-ratchet',
     'hashtree',
     'nostr-social-graph',
     'cashu-service',
-  ]) {
-    assert(componentIds.has(id), `expected stack.json component ${id}`);
-  }
+  ];
+  const componentIds = stack.components.map(({ id }) => id);
+  const positions = orderedIds.map((id) => componentIds.indexOf(id));
+  assert(positions.every((position) => position >= 0), 'expected every documented capability');
+  assert(positions.every((position, index) => index === 0 || position > positions[index - 1]));
+});
+
+test('the public artifact keeps portable metadata and project ownership explicit', () => {
+  assert.match(siteIndex, /<title>Iris Stack<\/title>/);
+  assert.match(siteIndex, /<meta property="og:image" content="https:\/\/stack\.iris\.to\/social-preview\.png" \/>/);
+  assert.match(siteIndex, /<meta name="twitter:card" content="summary" \/>/);
+  assert(existsSync(resolve(root, 'site/public/social-preview.png')));
+  assert.equal('license' in packageMetadata, false);
+  assert.doesNotMatch(cargoManifest, /^license\s*=/m);
+  assert.equal(existsSync(resolve(root, 'LICENSE')), false);
 });
 
 test('machine-readable product composition matches the exercised integrations', () => {
