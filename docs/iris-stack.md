@@ -20,7 +20,7 @@ or cloud vendor as an authority.
 ## 1. Capability layers
 
 The numbered order below runs from the network-facing substrate toward
-applications. Nostr identity and Cashu settlement cross every layer.
+applications. Nostr identity and payments cross every layer.
 
 | Position | Component | Role | Replaces |
 | --- | --- | --- | --- |
@@ -31,7 +31,7 @@ applications. Nostr identity and Cashu settlement cross every layer.
 | [3b · content](#hashtree-blobs-and-routes) | Hashtree | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
 | [4a · indexes](#hashtree-indexes-for-large-datasets) | `@hashtree/index` and `@hashtree/collection` | Immutable B-trees, canonical records, derived search roots, collection manifests, and local or federated reads | Central database, search service, or relay index |
 | [4b · social context](#social-graph-as-local-policy) | `nostr-social-graph` | Graph traversal, fact events, viewer-local naming, moderation, reputation, and resource-policy inputs | Central profile, ACL, moderation, or reputation database |
-| [Settlement plane](#cashu-service-layer) | Cashu service layer | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
+| [Payment plane](#payments) | `cashu-service` | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
 | [5 · applications](#products) | Products | User experience, authorization, durable state, economics, and explicit outbound peers | Single platform as identity, policy, and egress authority |
 
 ## 2. Identity plane
@@ -43,6 +43,10 @@ identity shared by FIPS nodes and application events. Signed events carry
 profiles, follows, mutes, messages, capability
 adverts, ratings, release roots, and application-defined facts. Signatures bind
 an event to its author; each application decides what that author may do.
+
+[Iris Chat](https://chat.iris.to/) uses Nostr keys as portable participant
+identities and carries encrypted message envelopes as signed events, without
+requiring phone-number or email accounts.
 
 ### 2.2 Signed fact events
 
@@ -58,6 +62,10 @@ The [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecear
 identity tools add UUID-based rosters and facts for identities that span several
 keys or devices. They support key changes without changing every reference to
 the identity.
+
+[Iris Contacts](https://contacts.iris.to/) keeps one UUID subject for a contact
+while `name`, `controls`, and other signed facts describe names, keys, and
+relationships that may change over time.
 
 ## 3. Connectivity
 
@@ -79,6 +87,10 @@ path selection, forwarding, admission, and link health. An IPv6 adapter lets
 existing IP software reach the same identities; native applications use FIPS
 service datagrams directly.
 
+[Nostr VPN](https://nostrvpn.org/) uses FIPS identities for private mesh peers,
+so a peer can move between available carriers without changing the identity
+that its routes and access policy refer to.
+
 ### 3.2 Reliable streams with fips-tcp
 
 [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp)
@@ -87,6 +99,10 @@ connected stream semantics, flow control, and congestion control while the
 remote address remains an authenticated FIPS identity. It suits protocols that
 need a continuous connection; event exchange and hash-addressed blobs can use
 their own higher-level delivery models.
+
+Iris Drive uses `fips-tcp` for reliable multi-frame Hashtree transfers between
+authenticated peers; Hashtree still verifies the received content by hash above
+the stream.
 
 ## 4. Publish-subscribe and discovery
 
@@ -117,6 +133,10 @@ peer adverts, machine ratings, Hashtree roots, app updates, repository
 announcements, and service offers. Events announce large content by hash;
 Hashtree routes carry the bytes.
 
+Iris Chat uses this plane for live message subscriptions, while Nostr VPN uses
+it for peer, route, and service announcements without assigning either product
+a mandatory relay.
+
 ### 4.2 Signed peer and service discovery
 
 Discovery adverts are candidates, not authority. Signed, expiring transport
@@ -134,6 +154,10 @@ Through `nostr-pubsub-fips`, an application can send an ordinary subscription
 over that connection and receive or forward the same adverts. Relays, local
 indexes, and other pub/sub peers can answer the same query; no source is
 required for discovery to work.
+
+For example, a Nostr VPN exit node or a Hashtree storage provider can announce
+both a reachable FIPS identity and the service it offers. A client verifies the
+same identity before considering that offer.
 
 ## 5. Verifiable content and indexes
 
@@ -157,6 +181,9 @@ Local storage, nearby peers, the wider mesh, and paid providers can all answer
 through that interface. Every response is verified against the requested hash.
 A route miss leaves the other routes available. `nostr-pubsub` announces
 content; Hashtree routes carry the blobs.
+
+Iris Drive uses this route model to find the same verified file in a local
+cache, a nearby peer, or a remote provider without changing the file's identity.
 
 ### 5.2 Hashtree indexes for large datasets
 
@@ -265,7 +292,7 @@ multiple keys.
 search, and its own UUID-backed contacts encoded as fact snapshots; its
 [source is on Iris Git](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-contacts).
 
-## 7. Cashu service layer
+## 7. Payments
 
 [`cashu-service`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service)
 provides [Cashu](https://cashu.space/) token transfer and settlement together
@@ -276,6 +303,10 @@ accepted Cashu mint, Lightning, or another configured method.
 Products choose pricing, credit limits, and accepted settlement methods. The
 same adapters can account for connectivity, bandwidth, storage, routing, or
 other services, while free and reciprocal routes remain available.
+
+For example, a Nostr VPN exit node can charge for forwarded traffic and settle
+the balance with Cashu. A Hashtree provider can use the same credit-and-receipt
+model for storage or blob delivery.
 
 ## 8. Products
 

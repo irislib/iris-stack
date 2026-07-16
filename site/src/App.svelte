@@ -6,6 +6,7 @@
   const owner = 'npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm';
   const sourceUrl = `https://git.iris.to/#/${owner}/iris-stack`;
   const activeHeadingOffset = 24;
+  const scrollPositionTolerance = 1;
   let tocOpen = false;
   let activeTocId = '';
 
@@ -85,8 +86,8 @@
     }
 
     for (const anchor of anchors) {
-      const headingTop = anchor.parentElement?.getBoundingClientRect().top;
-      if (headingTop === undefined || headingTop > activeHeadingOffset) break;
+      const anchorTop = anchor.getBoundingClientRect().top;
+      if (anchorTop > activeHeadingOffset + scrollPositionTolerance) break;
       nextActiveId = anchor.id;
     }
 

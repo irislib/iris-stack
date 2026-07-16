@@ -23,6 +23,7 @@ test('renders the public architecture Markdown', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '5.3 Web apps and updates as verified trees' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '6.1 Social graph as local policy' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '6.2 Human names without a global namespace' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '7. Payments' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '8. Products' })).toBeVisible();
   await expect(page.locator('.mermaid')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Product page' }).first()).toHaveAttribute('href', 'https://irischat.org/');
@@ -81,22 +82,38 @@ test('keeps deep links aligned after document rendering', async ({ page }) => {
 test('keeps a clicked section active when anchor navigation aligns it to the top', async ({ page }) => {
   await page.goto('/');
 
-  const activeTarget = page.locator('#table-of-contents a[href="#nostr-identity-and-signed-events"]');
-  const nextTarget = page.locator('#table-of-contents a[href="#signed-fact-events"]');
-  const inactiveMetrics = await activeTarget.evaluate((element) => ({
+  const firstTarget = page.locator('#table-of-contents a[href="#nostr-identity-and-signed-events"]');
+  const inactiveMetrics = await firstTarget.evaluate((element) => ({
     fontWeight: getComputedStyle(element).fontWeight,
     height: element.getBoundingClientRect().height,
   }));
 
-  await activeTarget.click();
+  for (const id of [
+    'nostr-identity-and-signed-events',
+    'signed-fact-events',
+    'nostr-pubsub-publish-subscribe',
+    'signed-peer-and-service-discovery',
+  ]) {
+    const target = page.locator(`#table-of-contents a[href="#${id}"]`);
+    await target.click();
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      let previousY = window.scrollY;
+      let stableFrames = 0;
+      const check = () => {
+        const nextY = window.scrollY;
+        stableFrames = nextY === previousY ? stableFrames + 1 : 0;
+        previousY = nextY;
+        if (stableFrames >= 3) resolve();
+        else window.requestAnimationFrame(check);
+      };
+      window.requestAnimationFrame(check);
+    }));
 
-  await expect(activeTarget).toHaveAttribute('aria-current', 'location');
-  await expect(nextTarget).not.toHaveAttribute('aria-current', 'location');
-  await expect.poll(async () => {
-    const top = await page.locator('#nostr-identity-and-signed-events').evaluate((element) => element.getBoundingClientRect().top);
-    return top >= 0 && top <= 24;
-  }).toBe(true);
-  const activeMetrics = await activeTarget.evaluate((element) => ({
+    await expect(target).toHaveAttribute('aria-current', 'location');
+    await expect(page.locator('#table-of-contents [aria-current="location"]')).toHaveCount(1);
+  }
+
+  const activeMetrics = await firstTarget.evaluate((element) => ({
     fontWeight: getComputedStyle(element).fontWeight,
     height: element.getBoundingClientRect().height,
   }));

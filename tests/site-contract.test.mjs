@@ -55,7 +55,7 @@ test('the capability table navigates within the guide', () => {
     '#hashtree-blobs-and-routes',
     '#hashtree-indexes-for-large-datasets',
     '#social-graph-as-local-policy',
-    '#cashu-service-layer',
+    '#payments',
     '#products',
   ]) {
     assert(guide.includes(`](${chapter}) |`), `expected a first-column capability-table link to ${chapter}`);
@@ -65,6 +65,9 @@ test('the capability table navigates within the guide', () => {
   assert.match(guide, /Platform account, email address, phone number, domain name, or TLS certificate as identity/);
   assert.match(guide, /subject–predicate–object shape/);
   assert.match(guide, /signature proves who made a claim, not\s+that the claim is universally true/);
+  assert.match(guide, /Iris Contacts.*keeps one UUID subject/s);
+  assert.match(guide, /Nostr VPN.*uses FIPS identities for private mesh peers/s);
+  assert.match(guide, /Iris Drive uses `fips-tcp` for reliable multi-frame Hashtree transfers/);
   assert.match(guide, /Origin server, CDN, or cloud store as content authority/);
   assert.match(guide, /Hash-addressed files and directories/);
   assert.match(guide, /files as blobs and directories as trees/);
@@ -81,7 +84,7 @@ test('the guide body follows the capability order', () => {
     '## 4. Publish-subscribe and discovery',
     '## 5. Verifiable content and indexes',
     '## 6. Social context and contextual naming',
-    '## 7. Cashu service layer',
+    '## 7. Payments',
     '## 8. Products',
     '## 9. Repository index',
   ];
@@ -131,6 +134,7 @@ test('the site directly renders the repository-owned Markdown guide', () => {
   assert.match(app, /aria-current=\{activeTocId === chapter\.id/);
   assert.match(app, /updateActiveToc/);
   assert.match(app, /activeHeadingOffset = 24/);
+  assert.match(app, /scrollPositionTolerance = 1/);
   assert.match(app, /selectToc/);
   assert.doesNotMatch(app, /viewportCenter/);
   assert.match(app, /dataset\.label/);
@@ -185,6 +189,7 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /Signatures decentralize\s+authorship, but peer-to-peer pub\/sub is what also decentralizes live delivery/);
   assert.match(guide, /incoming\s+event is admitted to local storage and fanout/);
   assert.match(guide, /peer or relay sources\s+are preferred, throttled, or dropped/);
+  assert.match(guide, /Iris Chat uses this plane for live message subscriptions/);
   assert.match(guide, /Discovery adverts are candidates, not authority/);
   assert.match(guide, /existing authenticated FIPS peer is one bootstrap route, not a registry/);
   assert.match(guide, /nostr-pubsub-fips/);
@@ -200,8 +205,9 @@ test('the public guide keeps architecture prose and private operations out', () 
   assert.match(guide, /hashtree-updater/);
   assert.match(guide, /Hashtree routes/);
   assert.match(guide, /\[Cashu\]\(https:\/\/cashu\.space\/\) token transfer/);
-  assert.match(guide, /^## 7\. Cashu service layer$/m);
-  assert.doesNotMatch(guide, /^## 7\. Settlement$|^### 7\.1 /m);
+  assert.match(guide, /^## 7\. Payments$/m);
+  assert.doesNotMatch(guide, /^## 7\. (?:Settlement|Cashu service layer)$|^### 7\.1 /m);
+  assert.match(guide, /Nostr VPN exit node can charge for forwarded traffic/);
   assert.match(guide, /public exit-node marketplace/);
   assert.match(guide, /The broader app catalog is \[apps\.iris\.to\]\(https:\/\/apps\.iris\.to\//);
   assert.doesNotMatch(guide, /sites\.iris\.to/);
