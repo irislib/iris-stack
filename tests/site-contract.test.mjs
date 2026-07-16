@@ -66,6 +66,7 @@ test('the capability table navigates within the guide', () => {
   assert.match(guide, /Platform account, email address, phone number, domain name, or TLS certificate as identity/);
   assert.match(guide, /subject–predicate–object shape/);
   assert.match(guide, /signature proves who made a claim, not\s+that the claim is universally true/);
+  assert.match(guide, /If a key is lost or compromised, social-graph attestations can\s+associate a replacement key with the same UUID, preserving the identity/);
   assert.match(guide, /Iris Chat.*owner-signed AppKeys roster fact snapshots to authorize and synchronize linked devices/s);
   assert.match(guide, /Iris Contacts.*Keeps one UUID subject/s);
   assert.match(guide, /Nostr VPN.*Uses FIPS identities for private mesh peers/s);

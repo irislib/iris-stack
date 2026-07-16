@@ -55,8 +55,9 @@ new event type for every data model. The signature proves who made a claim, not
 that the claim is universally true.
 
 The [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph)
-identity tools add UUID-based rosters and facts that preserve an identity across
-keys and devices.
+identity tools use UUID-based rosters and facts so an identity is not tied to a
+single key. If a key is lost or compromised, social-graph attestations can
+associate a replacement key with the same UUID, preserving the identity.
 
 | Example app | Usage |
 | --- | --- |
