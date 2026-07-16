@@ -78,7 +78,7 @@ export function configFor(options) {
     assets: {
       directory: path.relative(repoRoot, path.resolve(repoRoot, options.assets)),
       binding: 'ASSETS',
-      run_worker_first: true,
+      run_worker_first: ['/*', '!/assets/*.js'],
     },
   };
 }

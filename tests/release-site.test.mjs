@@ -242,7 +242,7 @@ test('generates Worker Static Assets config for the root dist', () => {
     assets: {
       directory: 'dist',
       binding: 'ASSETS',
-      run_worker_first: true,
+      run_worker_first: ['/*', '!/assets/*.js'],
     },
   });
   assert.deepEqual(options.domains, ['stack.iris.to']);
