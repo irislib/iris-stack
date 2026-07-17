@@ -312,10 +312,12 @@ multiple keys.
 
 ## 8. Payments
 
-[Cashu](https://cashu.space/) is Chaumian ecash for Bitcoin. A mint issues
-blind-signed bearer tokens; wallets pass them directly, and recipients swap or
-redeem them with the mint. The mint rejects double-spends but cannot
-cryptographically link a redeemed token to the withdrawal that created it.
+[Cashu](https://cashu.space/) is
+[Chaumian ecash](https://grokipedia.com/page/Ecash) for Bitcoin. A mint issues
+[blind-signed bearer tokens](https://en.wikipedia.org/wiki/Blind_signature);
+wallets pass them directly, and recipients swap or redeem them with the mint.
+The mint rejects double-spends but cannot cryptographically link a redeemed
+token to the withdrawal that created it.
 
 [`cashu-service`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service)
 adds sat-denominated useful-service receipts and bounded peer credit to that
