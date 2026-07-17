@@ -94,6 +94,8 @@ a {
 .doc-layout aside nav {
   position: sticky;
   top: 32px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
   font-family: "Source Serif 4", Georgia, serif;
   font-optical-sizing: auto;
 }
@@ -361,6 +363,8 @@ footer a:hover {
 
   .doc-layout aside nav {
     position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .toc-toggle {

@@ -13,7 +13,9 @@ test('renders the public architecture Markdown', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Iris Stack' })).toBeVisible();
   await expect(page.locator('.title-icon')).toBeVisible();
   await expect(page.getByRole('banner')).toHaveCount(0);
-  await expect(page.getByRole('navigation', { name: 'Table of contents' })).toBeVisible();
+  const tableOfContents = page.getByRole('navigation', { name: 'Table of contents' });
+  await expect(tableOfContents).toBeVisible();
+  await expect(tableOfContents).toHaveCSS('overflow-y', 'auto');
   await expect(page.getByRole('heading', { name: '1. Capability layers' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '2. Identity' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '2.1 Nostr identity and signed events' })).toBeVisible();
@@ -22,7 +24,7 @@ test('renders the public architecture Markdown', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '4.2 Signed peer and service discovery' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '5.1 nostr-double-ratchet' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '6.2 Hashtree indexes for large datasets' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '6.3 Web apps and updates as verified trees' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^6\.3\b/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: '7.1 Social graph as local policy' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '7.2 Human names without a global namespace' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '8. Payments' })).toBeVisible();

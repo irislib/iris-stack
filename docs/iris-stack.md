@@ -29,7 +29,7 @@ applications. Nostr identity and payments cross every layer.
 | [2 · streams](#reliable-streams-with-fips-tcp) | [`fips-tcp`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/fips-tcp) | Reliable ordered delivery over FIPS | TCP streams bound to IP endpoints |
 | [3a · publish-subscribe](#nostr-pubsub-publish-subscribe) | [`nostr-pubsub`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub) | Subscriptions, signed-event exchange, deduplication, source selection, and real-time policy | Central message broker |
 | [3b · private conversations](#nostr-double-ratchet) | [`nostr-double-ratchet`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-double-ratchet) | End-to-end encrypted 1:1 and group Nostr events, multi-device sessions, and asynchronous delivery | Platform messaging service or always-online encrypted connection |
-| [3c · content](#hashtree-blobs-and-routes) | [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree) | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
+| [3c · content](#hashtree-files-directories-and-routes) | [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree) | Hash-addressed files and directories, verification, caching, content routing, apps, releases, history, and Git data | Origin server, CDN, or cloud store as content authority |
 | [4a · indexes](#hashtree-indexes-for-large-datasets) | [`@hashtree/index`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-index) and [`@hashtree/collection`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/ts/packages/hashtree-collection) | Immutable B-trees, canonical records, derived search roots, collection manifests, and local or federated reads | Central database, search service, relay index, or platform API |
 | [4b · social context](#social-graph-as-local-policy) | [`nostr-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-social-graph) | Graph traversal, fact events, viewer-local naming, moderation, reputation, and resource-policy inputs | Central profile, ACL, moderation, or reputation database |
 | [Payments](#payments) | [`cashu-service`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service) | Bounded credit, token transfer, useful-service accounting, and settlement adapters | Credit-card processor or platform balance |
@@ -178,29 +178,31 @@ protocol.
 
 ## 6. Verifiable content and indexes
 
-### 6.1 Hashtree blobs and routes
+### 6.1 Hashtree files, directories, and routes
 
 [Hashtree](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree)
-stores files as blobs—which can be split into chunks—and directories as manifest
-trees. Each blob or manifest is addressed and independently verified by hash.
-It presents one operation—fetch a blob by hash—across configured sources.
-Anything that implements that operation is a `BlobRoute`.
+stores files and directories. Files can be split into chunks, while directories
+are encoded as manifests. Every encoded file, chunk, or directory manifest is
+addressed and independently verified by hash. Hashtree presents one operation—
+fetch content by hash—across configured sources. At the protocol layer, anything
+that implements that operation is a `BlobRoute`.
 
 [Blossom](https://github.com/hzrd149/blossom) provides compatible HTTP storage
-for SHA-256-addressed blobs. Related proposals define
+for SHA-256-addressed content. Related proposals define
 [client-side CHK encryption (BUD-15)](https://github.com/hzrd149/blossom/pull/104),
 [directory manifests (BUD-16)](https://github.com/hzrd149/blossom/pull/105),
 [chunked file and directory fanout manifests (BUD-17)](https://github.com/hzrd149/blossom/pull/106),
 and [Hashtree references (BUD-18)](https://github.com/hzrd149/blossom/pull/107).
-Together, these BUDs make the encoding canonical: files may be encrypted chunks,
-and directories may be manifest trees. Client-side CHK encryption is the default;
-each resulting blob or manifest remains content-hash addressed and independently
-verifiable. Blossom servers continue to store ordinary blobs.
+Together, these BUDs make the encoding canonical: files may be encrypted and
+chunked, while directories are encoded as manifests. Client-side CHK encryption
+is the default; each resulting content object remains hash-addressed and
+independently verifiable. Blossom servers continue to store the underlying
+content objects.
 
 Local storage, nearby peers, the wider mesh, and paid providers can all answer
 through that interface. Every response is verified against the requested hash.
 A route miss leaves the other routes available. `nostr-pubsub` announces
-content; Hashtree routes carry the blobs.
+content; Hashtree routes carry the file and directory data.
 
 ### 6.2 Hashtree indexes for large datasets
 
@@ -224,7 +226,7 @@ This supports reproducible Nostr-relay-like read projections. The publisher
 defines the available queries and update cadence; applications can query or
 federate several compatible publishers.
 
-### 6.3 Web apps and updates as verified trees
+### 6.3 Web apps and updates as verified directories
 
 A static web app can be published as a Hashtree directory. Its `nhash`
 identifies one immutable version; a signed `npub/tree` name can advance to a
@@ -344,7 +346,7 @@ More apps are listed at [apps.iris.to](https://apps.iris.to/).
 | Nostr VPN | A private mesh that connects directly when possible, and a public exit-node marketplace when you need an internet route | [Product page](https://nostrvpn.org/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-vpn) |
 | Iris Contacts | Public-key profiles, social context, and local UUID-backed contacts without a global account directory | [Web app](https://contacts.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-contacts) |
 | Iris Audio | A Hashtree-backed music catalog that demonstrates portable collection and search indexes | [Web app](https://audio.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-audio) |
-| Iris Sites | A launcher and isolated browser runtime for web apps published as Hashtree trees | [App catalog](https://apps.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites) |
+| Iris Sites | A launcher and isolated browser runtime for web apps published as Hashtree directories | [App catalog](https://apps.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-sites) |
 | Iris Git | Git repositories addressed through Nostr and Hashtree; `git-remote-htree` gives command-line Git fetch and push over `htree://` remotes | [Web app](https://git.iris.to/) · [Source](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-git) · [Remote helper](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) |
 
 ### 9.1 Product composition
@@ -355,13 +357,13 @@ and are not presented as shipped defaults.
 
 | Product | Current composition | Optional or in progress |
 | --- | --- | --- |
-| Iris Chat | [Nostr](#nostr-identity-and-signed-events) events, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) routing, [`nostr-double-ratchet`](#nostr-double-ratchet) messages, [FIPS](#fips-authenticated-datagrams) live links, [`fips-tcp`](#reliable-streams-with-fips-tcp) linked-device sync, and [Hashtree](#hashtree-blobs-and-routes) attachments | Ordinary Nostr relay routes remain compatible |
-| Iris Drive | [Hashtree](#hashtree-blobs-and-routes) files, directories, adaptive blob routes and pooled storage; [FIPS](#fips-authenticated-datagrams) authenticated peers and relay/WebRTC bootstrap; [`fips-tcp`](#reliable-streams-with-fips-tcp) blob streams; and the native `iris.localhost` resolver | Paid storage routes remain optional |
+| Iris Chat | [Nostr](#nostr-identity-and-signed-events) events, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) routing, [`nostr-double-ratchet`](#nostr-double-ratchet) messages, [FIPS](#fips-authenticated-datagrams) live links, [`fips-tcp`](#reliable-streams-with-fips-tcp) linked-device sync, and [Hashtree](#hashtree-files-directories-and-routes) attachments | Ordinary Nostr relay routes remain compatible |
+| Iris Drive | [Hashtree](#hashtree-files-directories-and-routes) files, directories, adaptive content routes and pooled storage; [FIPS](#fips-authenticated-datagrams) authenticated peers and relay/WebRTC bootstrap; [`fips-tcp`](#reliable-streams-with-fips-tcp) file streams; and the native `iris.localhost` resolver | Paid storage routes remain optional |
 | Nostr VPN | [FIPS](#fips-authenticated-datagrams) private and routed mesh, [`nostr-pubsub`](#nostr-pubsub-publish-subscribe) control events, and [social graph](#social-graph-as-local-policy) peer policy | [Cashu](#payments) settlement for paid exits is optional |
 | Iris Contacts | [Nostr](#nostr-identity-and-signed-events) profiles, [social graph](#social-graph-as-local-policy), and UUID-backed fact snapshots | — |
-| Iris Audio | [Hashtree](#hashtree-blobs-and-routes) media, [search indexes and collections](#hashtree-indexes-for-large-datasets), and Nostr mutable-root announcements | FIPS content routes are optional |
-| Iris Sites | [Hashtree](#hashtree-blobs-and-routes) app trees, Nostr mutable roots, isolated web origins, and the Iris Drive resolver | — |
-| Iris Git | Nostr repository roots, [Hashtree](#hashtree-blobs-and-routes) Git data, [social graph](#social-graph-as-local-policy) context, and [`git-remote-htree`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) | — |
+| Iris Audio | [Hashtree](#hashtree-files-directories-and-routes) media, [search indexes and collections](#hashtree-indexes-for-large-datasets), and Nostr mutable-root announcements | FIPS content routes are optional |
+| Iris Sites | [Hashtree](#hashtree-files-directories-and-routes) app directories, Nostr mutable roots, isolated web origins, and the Iris Drive resolver | — |
+| Iris Git | Nostr repository roots, [Hashtree](#hashtree-files-directories-and-routes) Git data, [social graph](#social-graph-as-local-policy) context, and [`git-remote-htree`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/hashtree/rust/crates/git-remote-htree) | — |
 
 ## 10. Repository index
 

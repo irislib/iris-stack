@@ -90,14 +90,14 @@
       "repository": "https://github.com/mmalmi/hashtree",
       "owns": [
         "content hashes",
-        "blobs and trees",
+        "files and directories",
         "content-addressed B-tree and collection indexes",
-        "web app and release trees",
+        "web app and release directories",
         "Hashtree-authenticated application updates",
         "history and Git data",
         "verification and caching",
-        "adaptive read routing over opaque blob routes",
-        "application-owned pooled blob storage",
+        "adaptive read routing over content routes",
+        "application-owned pooled file storage",
         "peer selection and HTL routing"
       ],
       "optional_integrations": [
