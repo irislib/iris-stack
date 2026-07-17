@@ -41,6 +41,21 @@ test('defaults to the stack.iris.to Worker custom domain and Hashtree site ref',
   assert.deepEqual(parsed.domains, ['stack.iris.to']);
 });
 
+test('publishes through an isolated Hashtree release store', () => {
+  const options = parseArgs(['--skip-cloudflare']);
+  const explicit = createReleasePlan(options, {
+    HTREE_RELEASE_DATA_DIR: '/tmp/iris-stack-release-test',
+  });
+  const explicitPublish = explicit.steps.find((step) => step.id === 'publish');
+  assert.deepEqual(explicitPublish?.env, {
+    HTREE_DATA_DIR: '/tmp/iris-stack-release-test',
+  });
+
+  const defaultPublish = createReleasePlan(options, {})
+    .steps.find((step) => step.id === 'publish');
+  assert.match(defaultPublish?.env?.HTREE_DATA_DIR ?? '', /iris-stack-release-hashtree/);
+});
+
 test('does not attach the production domain to an overridden Worker', () => {
   const parsed = parseArgs(['--worker-name', 'iris-stack-preview'], {});
 

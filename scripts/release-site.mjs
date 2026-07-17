@@ -18,6 +18,7 @@ const repoRoot = path.resolve(__dirname, '..');
 const defaultWorkerCompatibilityDate = '2026-07-15';
 const wranglerVersion = '4.111.0';
 const requiredHtreeVersion = '0.2.97';
+const defaultReleaseDataDir = path.join(tmpdir(), 'iris-stack-release-hashtree');
 
 export const releaseProfile = {
   appName: 'stack.iris.to',
@@ -151,7 +152,7 @@ function workerDeployCommand(options) {
   return command;
 }
 
-export function createReleasePlan(options) {
+export function createReleasePlan(options, env = process.env) {
   if (!options.skipCloudflare && !options.workerName) {
     throw new Error(
       `Missing Cloudflare Worker target. Pass --worker-name or set ${releaseProfile.workerNameEnv}.`,
@@ -183,6 +184,9 @@ export function createReleasePlan(options) {
       label: `Publish ${releaseProfile.appName} to Hashtree`,
       command: resolveHtreeCommand('add', '.', '--publish', options.treeName),
       cwd: distDir,
+      env: {
+        HTREE_DATA_DIR: env.HTREE_RELEASE_DATA_DIR ?? defaultReleaseDataDir,
+      },
     },
   ];
 
