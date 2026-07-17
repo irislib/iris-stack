@@ -19,7 +19,7 @@ export function parseArgs(argv) {
   const options = {
     routes: [],
     domains: [],
-    wranglerVersion: '4.111.0',
+    wranglerVersion: '4.112.0',
   };
   const args = [...argv];
 

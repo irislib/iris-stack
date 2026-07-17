@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly DEFAULT_NVPN_REV="0a73e41794653202e95f72ff86d75e29c6339449"
+readonly DEFAULT_NVPN_REV="81c1dee7664a85af4d153f856bc0f4f277ba2e29"
 readonly DEFAULT_NVPN_GIT_URL="https://github.com/mmalmi/nostr-vpn.git"
 
 nvpn_rev="${IRIS_STACK_NVPN_REV:-$DEFAULT_NVPN_REV}"

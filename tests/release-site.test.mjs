@@ -102,7 +102,7 @@ test('builds and tests one root dist before publishing and deploying it', () => 
     '--compatibility-date',
     '2026-07-15',
     '--wrangler-version',
-    '4.111.0',
+    '4.112.0',
     '--domain',
     'stack.iris.to',
   ]);
