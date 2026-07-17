@@ -79,7 +79,7 @@ Hashtree HTL or settlement policy.
 | Iris Chat | Native 0.1.40 uses the canonical FIPS Nostr relay adapter for roster-authorized device links, shared decentralized pub/sub, paged device synchronization, and one `BlobRouter` over its cache, authenticated Hashtree providers, and Blossom. Its application owns the primary store and TCP/FIPS transport; `RoutedStore` supplies verified routed reads without routing writes. The released Stack fixture calls its production attachment reader. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
 | Nostr VPN | Version 4.0.96 at `81c1dee7664a85af4d153f856bc0f4f277ba2e29` has a canonical two-process Docker gate: explicit application-owned UDP roster links carry bidirectional traffic while a signed kind-37196 event crosses shared TCP/FIPS pubsub. It pins FIPS 0.4.6, fips-tcp 0.2.0, and nostr-pubsub-fips 0.3.1. Iris Stack pins and delegates to that owner test. | Keep the VPN topology owner-local. Do not delegate VPN routes, roster policy, or egress to a same-host process. |
 | Iris Drive | Hashtree full-history commit `dbf43b2f49fe75f44ab19044a6040f68b3d22cb8` and byte-identical GitHub snapshot `97be0058df6c2a66dff9cb7303f172034e03420d` pin the corrected adaptive Hashtree/FIPS tuple. The product and Stack gates prove exact roster ACLs, relay-only WebRTC bootstrap, provider death and replacement, standalone retrieval, and preservation of Drive-owned outbound links. | Keep the released-product gate in the cross-platform matrix and extend it to larger multi-frame trees under sustained churn. |
-| Iris Git | Web release 0.1.4 uses Hashtree roots plus an exact-provider FIPS bridge and a real registry CLI/browser process gate. | Treat paid repository storage as a product integration, not a reason to fork Hashtree transport or Git object semantics. |
+| Iris Git | Web release 0.1.9 at `88fa708c` pins immutable Hashtree `v0.2.100` plus the TypeScript 0.5.1 tuple. Its ordered browser gate performs a real extracted-artifact `htree://self` push, retrieval, edit, and exact-provider FIPS read. | Treat paid repository storage as a product integration, not a reason to fork Hashtree transport or Git object semantics. |
 
 Versions identify the verified native release boundary on the stated date; the
 repository sources and package registries remain the authority for later
@@ -120,6 +120,15 @@ versions.
   `a61f94d5ee8bdd2115588a202c95636011046293c05a3082b7c1840431e190c0`.
   Its registry package, all-target/all-feature tests, strict Clippy, and real
   roster-authorized relay process test passed.
+- Iris Git `v0.1.9` is commit
+  `88fa708c2fdc93169d3babf16a8dd3f2323a138e`. Its 74-case ordered
+  Chromium gate uses the immutable Hashtree macOS arm64 archive with SHA-256
+  `c60eea1f0b47f08c64093d95843419904830096bbce0ea402ca1ec1cb7fe590e`.
+- WebVM `v2.0.2` is commit
+  `d29273a578ed51b077bf08ece4745e3f1b9d8148`. Its production gate composes
+  nVPN 4.0.96, FIPS 0.4.6, and immutable nostr-pubsub TypeScript 0.3.1;
+  Cloudflare production version `5c7ec187-aa93-48ee-8669-b11a18187594`
+  passed all four production scenarios.
 - `nostr-identity` 0.4.0 was released from the social-graph repository at
   commit `d8faabd1bf865f4cf95c9d56eddf99de31436862`; its published crate
   checksum is
