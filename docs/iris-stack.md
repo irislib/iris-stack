@@ -314,7 +314,7 @@ multiple keys.
 
 [Cashu](https://cashu.space/) is
 [Chaumian ecash](https://grokipedia.com/page/Ecash) for Bitcoin. A mint issues
-[blind-signed bearer tokens](https://en.wikipedia.org/wiki/Blind_signature);
+[blind-signed bearer tokens](https://grokipedia.com/page/Blind_signature);
 wallets pass them directly, and recipients swap or redeem them with the mint.
 The mint rejects double-spends but cannot cryptographically link a redeemed
 token to the withdrawal that created it.
