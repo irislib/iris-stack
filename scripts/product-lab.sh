@@ -3,7 +3,7 @@ set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 install_root=${IRIS_STACK_PRODUCT_INSTALL_ROOT:-"$repo_dir/target/product-lab"}
-drive_rev=${IRIS_STACK_DRIVE_REV:-eff9b2a7064be78dee6f99102cf4a644fb6bc111}
+drive_rev=${IRIS_STACK_DRIVE_REV:-97be0058df6c2a66dff9cb7303f172034e03420d}
 mkdir -p "$install_root"
 
 if [ -n "${IRIS_STACK_HTREE_BIN:-}" ]; then
@@ -12,7 +12,7 @@ if [ -n "${IRIS_STACK_HTREE_BIN:-}" ]; then
     exit 1
   }
 else
-  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.99}
+  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.100}
   cargo install \
     --locked \
     --root "$install_root" \
@@ -46,7 +46,7 @@ if [ -n "${IRIS_STACK_CHAT_FIXTURE_BIN:-}" ]; then
     exit 1
   }
 else
-  chat_version=${IRIS_STACK_CHAT_VERSION:-0.1.39}
+  chat_version=${IRIS_STACK_CHAT_VERSION:-0.1.40}
   cargo install \
     --locked \
     --root "$install_root" \

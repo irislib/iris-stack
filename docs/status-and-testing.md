@@ -73,12 +73,12 @@ Hashtree HTL or settlement policy.
 | FIPS | Rust 0.4.6 and TypeScript runtime 0.0.26 provide authenticated links, fixed loopback UDP rendezvous, capability exchange, routing, and multiple carriers. The same-host identity hint is proved by the ordinary authenticated handshake. The cross-language Chromium matrix passed 16/16 plus five sequential replacement-page repetitions against native 0.4.5. | Continue cross-carrier churn, bounded-admission, and mobile lifecycle gates. A local peer must never become a mandatory daemon or implicit egress owner. |
 | `fips-tcp` | Rust crates 0.2.0 provide reliable ordered streams over FIPS and cross-language wire fixtures. | Reset, retransmission, acknowledgment, backpressure, and long loss/reordering simulations belong here. Application record delivery is a separate semantic layer. |
 | `nostr-pubsub` | Core 0.1.11 and FIPS adapter 0.3.1 share the standard `REQ`/`EVENT`/`CLOSE` service and have simulator, stress, role-blind discovery, and Cashu-incentive gates. | Browser and native consumers must use the shared carrier instead of product-private endpoint namespaces. Offline history remains a storage concern. |
-| Hashtree | Core 0.2.86, LMDB 0.2.85, network 0.2.86, FIPS transport 0.4.6, CLI 0.2.99, and embedded runtime 0.2.85 provide one adaptive read-only `BlobRouter` over opaque routes and one application-owned adaptive `PoolStore` with bounded temperature balancing. Legacy `DataRequest` framing, peer selection, WebRTC stubs, and mesh pubsub are removed; release binaries retain FIPS-owned WebRTC and prove it from each packaged artifact. Multiprocess crash/resize/pin/GC, bounded multi-terabyte metadata behavior, HTL, corruption, provider churn, and native product gates pass. | Keep exercising multi-hop churn and bounded recovery through released artifacts. |
+| Hashtree | Core 0.2.86, LMDB 0.2.85, network 0.2.87, FIPS transport 0.4.6, CLI 0.2.100, and embedded runtime 0.2.86 provide one adaptive read-only `BlobRouter` over opaque routes and one application-owned adaptive `PoolStore` with bounded temperature balancing. Network 0.2.87 owns one HTL decrement per Hashtree mesh forward and exposes `RoutedStore` for Store-shaped consumers without routing writes. Legacy `DataRequest` framing, peer selection, WebRTC stubs, and mesh pubsub are removed; release binaries retain FIPS-owned WebRTC and prove it from each packaged artifact. Multiprocess crash/resize/pin/GC, bounded multi-terabyte metadata behavior, HTL, corruption, provider churn, and native product gates pass. | Keep exercising multi-hop churn and bounded recovery through released artifacts. |
 | Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, exact fact lookup, and the `nostr-identity` 0.4.0 crate exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
 | Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. The stack process gate uses its real loopback CDK mints and SQLite wallets to prove offline failure, payer death/replacement, exact-token recovery, second-receiver rejection, receiver-ACK completion, and conservation. | Bind the generic recovery path to authenticated paid bandwidth and storage effects. Mint trust and cross-mint settlement remain explicit policy. |
-| Iris Chat | Native 0.1.39 uses the canonical FIPS Nostr relay adapter for roster-authorized device links, shared decentralized pub/sub, paged device synchronization, and optional same-host Hashtree reads. The released Stack fixture calls its production attachment reader. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
+| Iris Chat | Native 0.1.40 uses the canonical FIPS Nostr relay adapter for roster-authorized device links, shared decentralized pub/sub, paged device synchronization, and optional routed Hashtree reads. Its application owns one explicit primary Store and TCP/FIPS transport; `RoutedStore` supplies verified cache, provider, and Blossom reads without routing writes. The released Stack fixture calls its production attachment reader. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
 | Nostr VPN | Source tag 4.0.95 at `4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3` has a canonical two-process Docker gate: explicit application-owned UDP roster links carry bidirectional traffic while a signed kind-37196 event crosses shared TCP/FIPS pubsub. Iris Stack pins and delegates to that owner test. | The VPN gate and Chat/Drive/Hashtree gate are separate process scenarios; test their simultaneous churn later. Do not delegate VPN routes or roster policy to a same-host process. |
-| Iris Drive | Hashtree full-history commit `b655ad935743afe5f794977a65e6f619ad49e155` and byte-identical GitHub snapshot `eff9b2a7064be78dee6f99102cf4a644fb6bc111` pin the adaptive Hashtree/FIPS tuple. The product and Stack gates prove exact roster ACLs, relay-only WebRTC bootstrap, provider death and replacement, standalone retrieval, and preservation of Drive-owned outbound links. | Keep the released-product gate in the cross-platform matrix and extend it to larger multi-frame trees under sustained churn. |
+| Iris Drive | Hashtree full-history commit `dbf43b2f49fe75f44ab19044a6040f68b3d22cb8` and byte-identical GitHub snapshot `97be0058df6c2a66dff9cb7303f172034e03420d` pin the corrected adaptive Hashtree/FIPS tuple. The product and Stack gates prove exact roster ACLs, relay-only WebRTC bootstrap, provider death and replacement, standalone retrieval, and preservation of Drive-owned outbound links. | Keep the released-product gate in the cross-platform matrix and extend it to larger multi-frame trees under sustained churn. |
 | Iris Git | Web release 0.1.4 uses Hashtree roots plus an exact-provider FIPS bridge and a real registry CLI/browser process gate. | Treat paid repository storage as a product integration, not a reason to fork Hashtree transport or Git object semantics. |
 
 Versions identify the verified native release boundary on the stated date; the
@@ -98,24 +98,25 @@ versions.
   0.0.8, WebRTC 0.0.42, Ethernet 0.0.25, and memory 0.0.6. Its full
   native-0.4.5 Chromium matrix passed 16/16 and the sequential replacement
   path passed another 5/5 repetitions.
-- Hashtree `v0.2.99` is commit
-  `5af7f4a2bfa6b5a05e7e4fb1c0527a7ef5aea870`. Published checksums are
+- Hashtree `v0.2.100` is commit
+  `f2d3426ab2191784f944aea591f566119bc10361`. Published checksums are
   `574476b1fe122bddc7783ba0346dca42ec673a241128b0edf9e38166c1bb800f`
   for core 0.2.86,
   `e61f72986fce9c84f9fd03c72c581af092e25ea698e8b7bc54ddc18fe821286b`
   for LMDB 0.2.85,
-  `d8de811dac6e87e303faefb27495f7a83cb88c860f593706846a5e27424d22b3`
-  for network 0.2.86,
+  `aa83a68204dfbdc10f2fa9e810740c981e6f87c114a763ee56d8823df02c077e`
+  for network 0.2.87,
   `3817b451831f915787090cb1ca33dac2e5313bc1e5afd2da515f0e57bb0c997f`
   for FIPS transport 0.4.6, and
-  `6047a518b682f0fccde0743ad1c9abfcc1e19aae6ebd4e34a7f9be8ef2262b6d`
-  for CLI 0.2.99, and
-  `25687e0763fa7c1eea4ad22da25eb73dc2372a5095e817eae24ec21447c75239`
-  for embedded runtime 0.2.85.
+  `eb8ee2266a43e58b4182da07c8829fa06b0e27e32d66164d6385ccedd6de2e89`
+  for CLI 0.2.100, and
+  `28482b66ec409702a50ceeac1a49f5fae42b141326822f394ad66a6ebc37562f`
+  for embedded runtime 0.2.86.
 - Iris Chat source commit
-  `6514f424fc16b0d435a22a98081fc4569c15ad2a` released `iris-chat`
-  0.1.39 with checksum
-  `abace4c0bcb00ff946e8501066a4abd083d08963e8e17bcc7c7bd4647f95cb54`.
+  `4e1fe4fbced6bccfd806c4cfce0d348f30f4eac5` released `iris-chat` 0.1.40 with checksum
+  `6fee11a9da20fddd2af3c52cad14588ec947d347c95470e1c1d0b61d10c44ce5`.
+  Its `iris-chat-protocol` 0.1.8 dependency has checksum
+  `a61f94d5ee8bdd2115588a202c95636011046293c05a3082b7c1840431e190c0`.
   Its registry package, all-target/all-feature tests, strict Clippy, and real
   roster-authorized relay process test passed.
 - `nostr-identity` 0.4.0 was released from the social-graph repository at
