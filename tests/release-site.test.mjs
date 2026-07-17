@@ -143,7 +143,7 @@ test('runs Hashtree publish and Cloudflare deploy in parallel only after dist te
         };
       }
       if (step.id === 'verify-htree') {
-        return { status: 0, stdout: 'htree 0.2.99\n', stderr: '' };
+        return { status: 0, stdout: 'htree 0.2.100\n', stderr: '' };
       }
       return { status: 0, stdout: '', stderr: '' };
     },
@@ -189,7 +189,7 @@ test('stops before testing or releasing when the build did not create dist', asy
       (step) => {
         calls.push(step.id);
         if (step.id === 'verify-htree') {
-          return { status: 0, stdout: 'htree 0.2.99\n', stderr: '' };
+          return { status: 0, stdout: 'htree 0.2.100\n', stderr: '' };
         }
         return { status: 0, stdout: '', stderr: '' };
       },
@@ -236,7 +236,7 @@ test('supports publishing to Hashtree without mutating Cloudflare', async () => 
         };
       }
       if (step.id === 'verify-htree') {
-        return { status: 0, stdout: 'htree 0.2.99\n', stderr: '' };
+        return { status: 0, stdout: 'htree 0.2.100\n', stderr: '' };
       }
       return { status: 0, stdout: '', stderr: '' };
     },
@@ -270,11 +270,11 @@ test('parses Hashtree publish output defensively', () => {
   );
 });
 
-test('rejects any release CLI other than exact hashtree-cli 0.2.99', async () => {
+test('rejects any release CLI other than exact hashtree-cli 0.2.100', async () => {
   const options = parseArgs(['--skip-cloudflare'], {});
   await assert.rejects(
     runRelease(options, () => ({ status: 0, stdout: 'htree 0.2.87\n', stderr: '' })),
-    /requires htree 0\.2\.99/,
+    /requires htree 0\.2\.100/,
   );
 });
 
@@ -287,7 +287,7 @@ test('fails closed when the fresh Hashtree retrieval fails', async () => {
       (step) => {
         calls.push(step.id);
         if (step.id === 'verify-htree') {
-          return { status: 0, stdout: 'htree 0.2.99\n', stderr: '' };
+          return { status: 0, stdout: 'htree 0.2.100\n', stderr: '' };
         }
         if (step.id === 'publish') {
           return {

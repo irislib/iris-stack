@@ -28,34 +28,34 @@ on:
       drive_rev:
         description: Exact public Iris Drive commit
         required: false
-        default: eff9b2a7064be78dee6f99102cf4a644fb6bc111
+        default: 97be0058df6c2a66dff9cb7303f172034e03420d
         type: string
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.99
+        default: 0.2.100
         type: string
       chat_version:
         description: Exact released iris-chat crate version
         required: false
-        default: 0.1.39
+        default: 0.1.40
         type: string
   workflow_dispatch:
     inputs:
       drive_rev:
         description: Exact public Iris Drive commit
         required: false
-        default: eff9b2a7064be78dee6f99102cf4a644fb6bc111
+        default: 97be0058df6c2a66dff9cb7303f172034e03420d
         type: string
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.99
+        default: 0.2.100
         type: string
       chat_version:
         description: Exact released iris-chat crate version
         required: false
-        default: 0.1.39
+        default: 0.1.40
         type: string
 
 permissions:
@@ -79,9 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev || 'eff9b2a7064be78dee6f99102cf4a644fb6bc111' }}
-      IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version || '0.2.99' }}
-      IRIS_STACK_CHAT_VERSION: ${{ inputs.chat_version || '0.1.39' }}
+      IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev || '97be0058df6c2a66dff9cb7303f172034e03420d' }}
+      IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version || '0.2.100' }}
+      IRIS_STACK_CHAT_VERSION: ${{ inputs.chat_version || '0.1.40' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

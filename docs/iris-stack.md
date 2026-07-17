@@ -185,7 +185,14 @@ stores files and directories. Files can be split into chunks, while directories
 are encoded as manifests. Every encoded file, chunk, or directory manifest is
 addressed and independently verified by hash. Hashtree presents one operation—
 fetch content by hash—across configured sources. At the protocol layer, anything
-that implements that operation is a `BlobRoute`.
+that implements that operation is a `BlobRoute`. Native applications can expose
+the router through `RoutedStore`: reads use those routes, while writes, pins,
+limits, and garbage collection stay with one explicit application-owned store.
+Same-user native processes may open the same LMDB pool when their layout,
+capacity, and pool configuration match, sharing committed immutable blobs
+without a daemon. Mutable pins, quotas, and garbage-collection decisions remain
+application metadata. Processes that do not share a store use the same read
+contract through an authenticated FIPS provider route instead.
 
 [Blossom](https://github.com/hzrd149/blossom) provides compatible HTTP storage
 for SHA-256-addressed content. Related proposals define
@@ -199,10 +206,13 @@ is the default; each resulting content object remains hash-addressed and
 independently verifiable. Blossom servers continue to store the underlying
 content objects.
 
-Local storage, nearby peers, the wider mesh, and paid providers can all answer
-through that interface. Every response is verified against the requested hash.
-A route miss leaves the other routes available. `nostr-pubsub` announces
-content; Hashtree routes carry the file and directory data.
+Local storage, nearby peers, and the wider mesh answer through that interface;
+a future paid provider can use the same opaque route boundary. Every response
+is verified against the requested hash, and a route miss leaves the other
+routes available. No paid Hashtree retrieval route is shipped as of 2026-07-17:
+`cashu-service` supplies the payment and recovery primitives, while their blob
+pricing and negotiation protocol remains product work. `nostr-pubsub`
+announces content; Hashtree routes carry the file and directory data.
 
 ### 6.2 Hashtree indexes for large datasets
 
