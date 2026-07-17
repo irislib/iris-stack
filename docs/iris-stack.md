@@ -312,11 +312,16 @@ multiple keys.
 
 ## 8. Payments
 
+[Cashu](https://cashu.space/) is Chaumian ecash for Bitcoin. A mint issues
+blind-signed bearer tokens; wallets pass them directly, and recipients swap or
+redeem them with the mint. The mint rejects double-spends but cannot
+cryptographically link a redeemed token to the withdrawal that created it.
+
 [`cashu-service`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/cashu-service)
-provides [Cashu](https://cashu.space/) token transfer and settlement together
-with sat-denominated useful-service receipts and bounded peer credit. A node can
-accept a peer's credit up to a local limit, then request settlement through an
-accepted Cashu mint, Lightning, or another configured method.
+adds sat-denominated useful-service receipts and bounded peer credit to that
+token transfer and settlement. A node can accept a peer's credit up to a local
+limit, then request settlement through an accepted Cashu mint, Lightning, or
+another configured method.
 
 Products choose pricing, credit limits, and settlement methods. The same
 adapters can meter connectivity, bandwidth, storage, or routing, while free and
