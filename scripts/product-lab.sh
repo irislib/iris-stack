@@ -3,7 +3,7 @@ set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 install_root=${IRIS_STACK_PRODUCT_INSTALL_ROOT:-"$repo_dir/target/product-lab"}
-drive_rev=${IRIS_STACK_DRIVE_REV:-d39100deaf5a256d94493527e6c4e864ef2504f5}
+drive_rev=${IRIS_STACK_DRIVE_REV:-eff9b2a7064be78dee6f99102cf4a644fb6bc111}
 mkdir -p "$install_root"
 
 if [ -n "${IRIS_STACK_HTREE_BIN:-}" ]; then
@@ -12,11 +12,12 @@ if [ -n "${IRIS_STACK_HTREE_BIN:-}" ]; then
     exit 1
   }
 else
-  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.98}
+  htree_version=${IRIS_STACK_HTREE_VERSION:-0.2.99}
   cargo install \
     --locked \
     --root "$install_root" \
     --version "=$htree_version" \
+    --features fips-webrtc \
     --bin htree \
     hashtree-cli
   IRIS_STACK_HTREE_BIN=$install_root/bin/htree
