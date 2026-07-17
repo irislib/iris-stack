@@ -7,9 +7,10 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail, ensure};
 use product::{
-    HtreeNode, NodeConfig, TestRoot, add_blob, cat_blob, drive_identity, fetch_status,
-    fips_udp_peer_connected, htree_identity, payload, required_binary, reserve_tcp_address,
-    reserve_udp_address, spawn_htree, wait_for_fips_peer_connection,
+    HtreeNode, NodeConfig, TestRoot, add_blob, cat_blob, drive_identity,
+    fetch_drive_with_bounded_recovery, fetch_status, fips_udp_peer_connected, htree_identity,
+    payload, required_binary, reserve_tcp_address, reserve_udp_address, spawn_htree,
+    wait_for_fips_peer_connection,
 };
 use serde_json::Value;
 use support::process::ManagedProcess;
@@ -109,6 +110,11 @@ async fn run_product_scenario() -> Result<()> {
         .arg(&remote_npub)
         .arg(&drive_key)
         .arg(&drive_identity.profile_id)
+        .env(
+            "HTREE_CONFIG_DIR",
+            root.path().join("drive-hashtree-config"),
+        )
+        .env("HTREE_DATA_DIR", root.path().join("drive-hashtree-data"))
         .env("IRIS_DRIVE_FIPS_LOCAL_RENDEZVOUS_ADDR", &local_rendezvous)
         .env("IRIS_DRIVE_FIPS_UDP_BIND_ADDR", &drive_udp)
         .env("IRIS_DRIVE_FIPS_UDP_PUBLIC", "false")
@@ -172,7 +178,7 @@ async fn run_product_scenario() -> Result<()> {
     );
 
     wait_for_drive_provider_withdrawal(&mut drive, &remote_udp, &provider_npub).await?;
-    let second = fetch_with_bounded_recovery(&mut drive, &second_cid, &remote_udp).await?;
+    let second = fetch_drive_with_bounded_recovery(&mut drive, &second_cid, &remote_udp).await?;
     assert_fetch(&second, &second_cid, &remote_udp)?;
     ensure!(
         cat_blob(&htree_bin, &provider, &second_cid).await.is_err(),
@@ -189,7 +195,7 @@ async fn run_product_scenario() -> Result<()> {
     wait_for_drive_provider_replacement(&mut drive, &remote_udp, &provider_npub, &replacement_npub)
         .await?;
     let replacement_fetch =
-        fetch_with_bounded_recovery(&mut drive, &replacement_cid, &remote_udp).await?;
+        fetch_drive_with_bounded_recovery(&mut drive, &replacement_cid, &remote_udp).await?;
     assert_fetch(&replacement_fetch, &replacement_cid, &remote_udp)?;
     ensure!(
         cat_blob(&htree_bin, &replacement, &replacement_cid).await? == replacement_bytes,
@@ -228,34 +234,6 @@ async fn run_product_scenario() -> Result<()> {
         ready["npub"], provider_npub, replacement_npub, remote_npub
     );
     Ok(())
-}
-
-async fn fetch_with_bounded_recovery(
-    drive: &mut ManagedProcess,
-    cid: &str,
-    remote_udp: &str,
-) -> Result<Value> {
-    const MAX_ATTEMPTS: usize = 6;
-    timeout(Duration::from_secs(60), async {
-        let mut last_error = None;
-        for _ in 0..MAX_ATTEMPTS {
-            drive.send_line(&format!("fetch {cid}")).await?;
-            let result = drive.json_event("fetch").await?;
-            assert_drive_udp(&result, remote_udp)?;
-            if let Some(error) = result.get("error").and_then(Value::as_str) {
-                last_error = Some(error.to_string());
-            } else {
-                return Ok::<_, anyhow::Error>(result);
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-        bail!(
-            "Drive standalone route remained unavailable after {MAX_ATTEMPTS} attempts: {}",
-            last_error.unwrap_or_else(|| "unknown transport error".to_string())
-        )
-    })
-    .await
-    .context("Drive did not recover its standalone route after provider death")?
 }
 
 async fn wait_for_drive_provider_withdrawal(

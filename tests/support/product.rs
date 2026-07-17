@@ -326,6 +326,36 @@ pub async fn fetch_status(addr: &str) -> Result<Value> {
     response.json().await.context("decode htree status JSON")
 }
 
+pub async fn fetch_drive_with_bounded_recovery(
+    drive: &mut ManagedProcess,
+    cid: &str,
+    remote_udp: &str,
+) -> Result<Value> {
+    const MAX_ATTEMPTS: usize = 6;
+    timeout(Duration::from_secs(60), async {
+        let mut last_error = None;
+        for _ in 0..MAX_ATTEMPTS {
+            drive.send_line(&format!("fetch {cid}")).await?;
+            let result = drive.json_event("fetch").await?;
+            ensure!(result["remote_connected"] == true);
+            ensure!(result["remote_transport"] == "udp");
+            ensure!(result["remote_addr"] == remote_udp);
+            if let Some(error) = result.get("error").and_then(Value::as_str) {
+                last_error = Some(error.to_string());
+            } else {
+                return Ok::<_, anyhow::Error>(result);
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        bail!(
+            "Drive standalone route remained unavailable after {MAX_ATTEMPTS} attempts: {}",
+            last_error.unwrap_or_else(|| "unknown transport error".to_string())
+        )
+    })
+    .await
+    .context("Drive did not recover its standalone route")?
+}
+
 pub fn payload(label: &str, len: usize) -> Vec<u8> {
     label.as_bytes().iter().copied().cycle().take(len).collect()
 }

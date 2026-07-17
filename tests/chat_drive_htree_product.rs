@@ -8,9 +8,10 @@ use std::time::Duration;
 use anyhow::{Context, Result, ensure};
 use hashtree_core::BLOB_DEFAULT_HTL;
 use product::{
-    HtreeNode, NodeConfig, TestRoot, add_blob, cat_blob, drive_identity, htree_identity,
-    nhash_for_cid, payload, payload_sha256, required_binary, reserve_tcp_address,
-    reserve_udp_address, spawn_htree, wait_for_htree_fips_peer, write_hashtree_read_config,
+    HtreeNode, NodeConfig, TestRoot, add_blob, cat_blob, drive_identity,
+    fetch_drive_with_bounded_recovery, htree_identity, nhash_for_cid, payload, payload_sha256,
+    required_binary, reserve_tcp_address, reserve_udp_address, spawn_htree,
+    wait_for_htree_fips_peer, write_hashtree_read_config,
 };
 use serde_json::Value;
 use support::process::ManagedProcess;
@@ -137,6 +138,11 @@ async fn run_product_scenario() -> Result<()> {
         .arg(&remote_npub)
         .arg(&drive_key)
         .arg(&drive_identity.profile_id)
+        .env(
+            "HTREE_CONFIG_DIR",
+            root.path().join("drive-hashtree-config"),
+        )
+        .env("HTREE_DATA_DIR", root.path().join("drive-hashtree-data"))
         .env("IRIS_DRIVE_FIPS_LOCAL_RENDEZVOUS_ADDR", &local_rendezvous)
         .env("IRIS_DRIVE_FIPS_UDP_BIND_ADDR", &drive_udp)
         .env("IRIS_DRIVE_FIPS_UDP_PUBLIC", "false")
@@ -161,11 +167,11 @@ async fn run_product_scenario() -> Result<()> {
     ensure!(ready["discovery_scope"] == drive_identity.discovery_scope);
 
     wait_for_drive_topology(&mut drive, &remote_udp, &provider_npub).await?;
-    let chat_provider = wait_for_chat_fetch(&mut chat, &provider_nhash, &provider_bytes).await?;
-    assert_chat_fetch(&chat_provider, &provider_nhash, &provider_bytes)?;
     let drive_provider = fetch_drive(&mut drive, &provider_cid).await?;
     assert_drive_fetch(&drive_provider, &provider_cid, &remote_udp)
         .context("Drive provider-only fetch")?;
+    let chat_provider = wait_for_chat_fetch(&mut chat, &provider_nhash, &provider_bytes).await?;
+    assert_chat_fetch(&chat_provider, &provider_nhash, &provider_bytes)?;
 
     ensure!(
         BLOB_DEFAULT_HTL == 10 && BLOB_DEFAULT_HTL.saturating_sub(1) == 9,
@@ -184,7 +190,8 @@ async fn run_product_scenario() -> Result<()> {
 
     let chat_standalone = fetch_chat(&mut chat, &standalone_nhash).await?;
     assert_chat_fetch(&chat_standalone, &standalone_nhash, &standalone_bytes)?;
-    let drive_standalone = fetch_drive(&mut drive, &standalone_cid).await?;
+    let drive_standalone =
+        fetch_drive_with_bounded_recovery(&mut drive, &standalone_cid, &remote_udp).await?;
     assert_drive_fetch(&drive_standalone, &standalone_cid, &remote_udp)
         .context("Drive standalone fetch after provider NoResult")?;
     ensure!(
@@ -207,7 +214,8 @@ async fn run_product_scenario() -> Result<()> {
 
     let chat_after_death = fetch_chat(&mut chat, &after_death_nhash).await?;
     assert_chat_fetch(&chat_after_death, &after_death_nhash, &after_death_bytes)?;
-    let drive_after_death = fetch_drive(&mut drive, &after_death_cid).await?;
+    let drive_after_death =
+        fetch_drive_with_bounded_recovery(&mut drive, &after_death_cid, &remote_udp).await?;
     assert_drive_fetch(&drive_after_death, &after_death_cid, &remote_udp)
         .context("Drive standalone fetch after provider death")?;
     ensure!(

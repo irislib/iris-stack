@@ -28,12 +28,12 @@ on:
       drive_rev:
         description: Exact public Iris Drive commit
         required: false
-        default: e48648893b5b38fbafabf6fac0e797bbeb00fc94
+        default: 944dc0127c67efafe353d90cf855d56d42783469
         type: string
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.93
+        default: 0.2.97
         type: string
       chat_version:
         description: Exact released iris-chat crate version
@@ -45,12 +45,12 @@ on:
       drive_rev:
         description: Exact public Iris Drive commit
         required: false
-        default: e48648893b5b38fbafabf6fac0e797bbeb00fc94
+        default: 944dc0127c67efafe353d90cf855d56d42783469
         type: string
       htree_version:
         description: Exact released hashtree-cli version
         required: false
-        default: 0.2.93
+        default: 0.2.97
         type: string
       chat_version:
         description: Exact released iris-chat crate version
@@ -79,8 +79,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev || 'e48648893b5b38fbafabf6fac0e797bbeb00fc94' }}
-      IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version || '0.2.93' }}
+      IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev || '944dc0127c67efafe353d90cf855d56d42783469' }}
+      IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version || '0.2.97' }}
       IRIS_STACK_CHAT_VERSION: ${{ inputs.chat_version || '0.1.39' }}
     steps:
       - uses: actions/checkout@v4
