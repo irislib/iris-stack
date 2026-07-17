@@ -196,7 +196,7 @@ cargo fmt --check
 
 The released-product gate is ignored by ordinary `cargo test` because it
 installs and runs external artifacts. The script pins Iris Drive commit
-`944dc0127c67efafe353d90cf855d56d42783469`, `hashtree-cli` 0.2.97, and the
+`d39100deaf5a256d94493527e6c4e864ef2504f5`, `hashtree-cli` 0.2.98, and the
 published `iris-chat` 0.1.39 crate by default. Run the lab directly, or
 override an exact coordinate explicitly:
 
@@ -228,7 +228,7 @@ repositories. The generic native workflow runs `cargo test --locked
 
 ## Site release verification
 
-`pnpm run release:site` accepts only `hashtree-cli` 0.2.97, either from `PATH`
+`pnpm run release:site` accepts only `hashtree-cli` 0.2.98, either from `PATH`
 or from an explicit executable `HTREE_BIN`. After the portable build and tests,
 Hashtree publication and Cloudflare deployment run independently. Once the
 publisher emits an immutable `nhash`, the release script uses a fresh

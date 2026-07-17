@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const defaultWorkerCompatibilityDate = '2026-07-15';
 const wranglerVersion = '4.111.0';
-const requiredHtreeVersion = '0.2.97';
+const requiredHtreeVersion = '0.2.98';
 const defaultReleaseDataDir = path.join(tmpdir(), 'iris-stack-release-hashtree');
 
 export const releaseProfile = {
