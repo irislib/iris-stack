@@ -153,7 +153,7 @@ receipt and receiver acknowledgement.
 
 The VPN product gate is a thin launcher for Nostr VPN's owner-repository
 process test. By default it fetches exact public commit
-[`4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3`](https://github.com/mmalmi/nostr-vpn/commit/4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3)
+[`0a73e41794653202e95f72ff86d75e29c6339449`](https://github.com/mmalmi/nostr-vpn/commit/0a73e41794653202e95f72ff86d75e29c6339449)
 into a temporary checkout and runs its canonical
 `scripts/e2e-connect-docker.sh`. Iris Stack does not copy the VPN topology,
 commands, protocol, or assertions.

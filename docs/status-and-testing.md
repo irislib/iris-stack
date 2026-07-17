@@ -77,7 +77,7 @@ Hashtree HTL or settlement policy.
 | Social graph and facts | Signed facts, graph traversal, social policy, UUID identity tools, exact fact lookup, and the `nostr-identity` 0.4.0 crate exist. | Unify fact-name search and recovery UX; gate FIPS identity bindings and resource-policy inputs without creating a global reputation score. |
 | Cashu service layer | Published `cashu-service` 0.3.1 owns bounded peer credit, useful-service receipts, Cashu transfer, and settlement adapters. The stack process gate uses its real loopback CDK mints and SQLite wallets to prove offline failure, payer death/replacement, exact-token recovery, second-receiver rejection, receiver-ACK completion, and conservation. | Bind the generic recovery path to authenticated paid bandwidth and storage effects. Mint trust and cross-mint settlement remain explicit policy. |
 | Iris Chat | Native 0.1.39 uses the canonical FIPS Nostr relay adapter for roster-authorized device links, shared decentralized pub/sub, paged device synchronization, and optional same-host Hashtree reads. The released Stack fixture calls its production attachment reader. | Keep native and browser device-sync fixtures byte-compatible, and test connection loss after local stream acceptance so resynchronization—not wishful delivery—is the recovery mechanism. |
-| Nostr VPN | Source tag 4.0.95 at `4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3` has a canonical two-process Docker gate: explicit application-owned UDP roster links carry bidirectional traffic while a signed kind-37196 event crosses shared TCP/FIPS pubsub. Iris Stack pins and delegates to that owner test. | The VPN gate and Chat/Drive/Hashtree gate are separate process scenarios; test their simultaneous churn later. Do not delegate VPN routes or roster policy to a same-host process. |
+| Nostr VPN | Version 4.0.96 at `0a73e41794653202e95f72ff86d75e29c6339449` has a canonical two-process Docker gate: explicit application-owned UDP roster links carry bidirectional traffic while a signed kind-37196 event crosses shared TCP/FIPS pubsub. It pins FIPS 0.4.5, fips-tcp 0.2.0, and nostr-pubsub-fips 0.3.1. Iris Stack pins and delegates to that owner test. | Keep the VPN topology owner-local. Do not delegate VPN routes, roster policy, or egress to a same-host process. |
 | Iris Drive | Hashtree full-history commit `b655ad935743afe5f794977a65e6f619ad49e155` and byte-identical GitHub snapshot `eff9b2a7064be78dee6f99102cf4a644fb6bc111` pin the adaptive Hashtree/FIPS tuple. The product and Stack gates prove exact roster ACLs, relay-only WebRTC bootstrap, provider death and replacement, standalone retrieval, and preservation of Drive-owned outbound links. | Keep the released-product gate in the cross-platform matrix and extend it to larger multi-frame trees under sustained churn. |
 | Iris Git | Web release 0.1.4 uses Hashtree roots plus an exact-provider FIPS bridge and a real registry CLI/browser process gate. | Treat paid repository storage as a product integration, not a reason to fork Hashtree transport or Git object semantics. |
 
@@ -131,8 +131,8 @@ versions.
   The `cashu_payment_product` process gate consumes those registry artifacts;
   it proves the generic service-payment failure/replay/resumption boundary, not
   a paid Iris product meter.
-- Nostr VPN source tag 4.0.95 at
-  `4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3` owns
+- Nostr VPN 4.0.96 at
+  `0a73e41794653202e95f72ff86d75e29c6339449` owns
   `scripts/e2e-connect-docker.sh`. Its two real processes preserve explicit
   UDP roster traffic in both directions while delivering a signed kind-37196
   paid-exit event through the shared TCP/FIPS pubsub service. Iris Stack's
@@ -216,20 +216,17 @@ either.
 
 ## Priority test backlog
 
-1. Add Nostr VPN to the released Chat/Drive/Hashtree composition. Kill and
-   replace local providers while every product retains its own explicit
-   outbound connectivity.
-2. Bind paid FIPS forwarding and paid Hashtree storage to the verified generic
+1. Bind paid FIPS forwarding and paid Hashtree storage to the verified generic
    Cashu recovery gate. Inject product-effect rejection, timeout, duplicate
    receipt, crash, restart, and eventual receiver acknowledgement.
-3. Enforce the same native/TypeScript fixtures in owner-repository release
+2. Enforce the same native/TypeScript fixtures in owner-repository release
    gates, including browser constraints where native loopback UDP is not
    available.
-4. Add long-running loss, churn, bounded-memory, file-descriptor, and process
+3. Add long-running loss, churn, bounded-memory, file-descriptor, and process
    death tests using production state machines.
-5. Gate exact authenticated capability and service-port selection so an
+4. Gate exact authenticated capability and service-port selection so an
    arbitrary connected peer can never be mistaken for a provider.
-6. Treat record acceptance, TCP acknowledgment, and application commit as
+5. Treat record acceptance, TCP acknowledgment, and application commit as
    distinct states in product protocols; make reset/resync behavior explicit.
 7. Add Iris Git only after the shared content and event paths are sufficient;
    do not create Git-specific copies of discovery or blob routing.

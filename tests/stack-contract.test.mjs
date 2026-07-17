@@ -74,7 +74,7 @@ test('the public guide links products without leaking private workspace details'
 });
 
 test('the VPN product gate delegates to one pinned owner harness', () => {
-  const revision = '4c43cc5761d67e5dc1a9a4de30c829ae45dc37f3';
+  const revision = '0a73e41794653202e95f72ff86d75e29c6339449';
 
   assert(vpnLab.includes(revision));
   assert(vpnWorkflow.includes(revision));
