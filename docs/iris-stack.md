@@ -108,16 +108,28 @@ inventory/want exchanges.
 ### 4.1 nostr-pubsub publish-subscribe
 
 [`nostr-pubsub`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub)
-carries ordinary Nostr subscriptions and signed events across local indexes,
-FIPS peers, mesh peers, and optional relays. An application subscribes once and
+carries ordinary [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md)
+subscriptions and signed events across local indexes, FIPS peers, mesh peers,
+and optional relays. Its direct-peer wire keeps the NIP-01 filter semantics and
+`REQ`, `CLOSE`, and `EVENT` message shapes. An application subscribes once and
 applies local policy when choosing sources or accepting events.
 
-The protocol preserves that model without organizing communication around relay
-servers. Peers can exchange and forward subscriptions and events directly,
-while standard Nostr relays remain optional routes. A peer only needs a path to
-another peer; it does not need to expose a public server, register a domain, or
-obtain a TLS certificate. Signatures decentralize authorship, but peer-to-peer
-pub/sub is what also decentralizes live delivery.
+Unlike NIP-01's client–relay topology, the direct protocol does not assign
+client and server roles. Peers can exchange and forward subscriptions and
+events in either direction, while standard Nostr relays remain optional routes.
+A peer only needs a path to another peer; it does not need to expose a public
+server, register a domain, or obtain a TLS certificate. Signatures decentralize
+authorship, but peer-to-peer pub/sub is what also decentralizes live delivery.
+
+On FIPS and mesh paths, matching events use an inventory-first exchange similar
+to the bandwidth-saving idea in [proposed NIP-114](https://github.com/nostr-protocol/nips/pull/1027).
+A peer first sends an `INV` containing the event ID—the NIP-01 hash identifying
+the event—instead of the complete event. The receiver deduplicates that ID
+across peers and subscriptions and sends `WANT` only if it still needs the
+payload; the provider then replies with an ordinary subscription-scoped
+`EVENT`. This avoids resending a complete event that arrived earlier from local
+storage or another peer, which is particularly useful when mesh fanout brings
+the same inventory along multiple paths.
 
 The [`nostr-pubsub-social-graph`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub/crates/nostr-pubsub-social-graph)
 adapter uses follows, mutes, graph distance, and signed service ratings to admit
