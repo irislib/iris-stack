@@ -180,14 +180,14 @@ payload can be any app-defined Nostr event—not only a chat line—making the s
 primitive useful for private social posts, shared records, and other
 group-scoped data.
 
-| Example app | Usage |
-| --- | --- |
-| [Iris Chat](https://chat.iris.to/) | Uses 1:1 ratchets and group sender keys for encrypted messages across authorized devices, with Nostr routes supporting asynchronous delivery. |
-
 This design is pairwise-ratchet-first: group sender keys are distributed over
 authenticated pairwise sessions. [Marmot](https://github.com/marmot-protocol/marmot)
 instead uses MLS as a continuous group key-agreement and membership-state
 protocol.
+
+| Example app | Usage |
+| --- | --- |
+| [Iris Chat](https://chat.iris.to/) | Uses 1:1 ratchets and group sender keys for encrypted messages across authorized devices, with Nostr routes supporting asynchronous delivery. |
 
 ## 6. Verifiable content and indexes
 
