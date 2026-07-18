@@ -109,10 +109,11 @@ inventory/want exchanges.
 
 [`nostr-pubsub`](https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/nostr-pubsub)
 carries ordinary [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md)
-subscriptions and signed events across local indexes, FIPS peers, mesh peers,
-and optional relays. Its direct-peer wire keeps the NIP-01 filter semantics and
-`REQ`, `CLOSE`, and `EVENT` message shapes. An application subscribes once and
-applies local policy when choosing sources or accepting events.
+subscriptions and signed events across local indexes, FIPS-connected pub/sub
+peers, and optional relays. Its direct-peer wire keeps the NIP-01 filter
+semantics and `REQ`, `CLOSE`, and `EVENT` message shapes. An application
+subscribes once and applies local policy when choosing sources or accepting
+events.
 
 Unlike NIP-01's client–relay topology, the direct protocol does not assign
 client and server roles. Peers can exchange and forward subscriptions and
@@ -121,8 +122,8 @@ A peer only needs a path to another peer; it does not need to expose a public
 server, register a domain, or obtain a TLS certificate. Signatures decentralize
 authorship, but peer-to-peer pub/sub is what also decentralizes live delivery.
 
-On FIPS and mesh paths, matching events use an inventory-first exchange similar
-to the bandwidth-saving idea in [proposed NIP-114](https://github.com/nostr-protocol/nips/pull/1027).
+Across the FIPS-carried peer mesh, matching events use an inventory-first
+exchange similar to the bandwidth-saving idea in [proposed NIP-114](https://github.com/nostr-protocol/nips/pull/1027).
 A peer first sends an `INV` containing the event ID—the NIP-01 hash identifying
 the event—instead of the complete event. The receiver deduplicates that ID
 across peers and subscriptions and sends `WANT` only if it still needs the
