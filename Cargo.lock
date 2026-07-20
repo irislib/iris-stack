@@ -1454,9 +1454,9 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "fips-core"
-version = "0.4.6"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12cc0df5e04a1aae16efa85313976e87eb037d6e7955b8a035febd91b00383dc"
+checksum = "59f25c710228b85f5389709670e7affe0d6d4561325b261d4daee6658da4ca0b"
 dependencies = [
  "base64 0.22.1",
  "bluer",
@@ -1485,6 +1485,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-socks",
+ "tokio-tungstenite 0.26.2",
  "tracing",
  "tun",
  "uuid",
@@ -1494,9 +1495,9 @@ dependencies = [
 
 [[package]]
 name = "fips-identity"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e143619aebf9db3129c1d2de67ba223bcf611216efa09a932c98a617e3e4a42b"
+checksum = "d6f523b6e13208470a1340f26da6255c653980ce773ee883ffc956a05d15dbcd"
 dependencies = [
  "bech32",
  "hex",
@@ -1843,9 +1844,9 @@ dependencies = [
 
 [[package]]
 name = "hashtree-fips-transport"
-version = "0.4.6"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3817b451831f915787090cb1ca33dac2e5313bc1e5afd2da515f0e57bb0c997f"
+checksum = "ff1ce5ade44fc98a2d87fda36a276c9e735dc40173a5f7d8dbf463713b603c25"
 dependencies = [
  "async-trait",
  "fips-core",

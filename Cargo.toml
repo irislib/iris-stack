@@ -11,9 +11,9 @@ publish = false
 anyhow = "1"
 cashu-credit = "=0.3.0"
 cashu-service = { version = "=0.3.1", features = ["simulation"] }
-fips-core = "=0.4.6"
+fips-core = "=0.4.19"
 hashtree-core = "0.2.86"
-hashtree-fips-transport = "=0.4.6"
+hashtree-fips-transport = "=0.4.10"
 hashtree-lmdb = "0.2.85"
 hashtree-network = "=0.2.87"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
