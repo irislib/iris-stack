@@ -67,9 +67,10 @@ released-product gates cover the combined Chat/Drive topology and Drive's
 provider-replacement lifecycle.
 
 The checked-in Rust lockfile pins the substrate gate to the published
-`fips-core` 0.4.6 and `fips-tcp` 0.2.0 artifacts. The released `htree`
-executable supplies `hashtree-fips-transport` 0.4.6. Product fixtures and the
-`htree` executable are supplied as exact coordinates at run time.
+`nvpn-fips-core` 0.4.65, `nvpn-fips-tcp` 0.2.1, and
+`hashtree-fips-transport` 0.4.12 artifacts while retaining `hashtree-core`
+0.2.86. Product fixtures and the separately released `htree` executable are
+supplied as exact coordinates at run time.
 
 ```text
 HTL-only remote htree <== provider-owned UDP FIPS ==> local htree provider

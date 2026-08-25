@@ -57,10 +57,10 @@ candidate_cargo() {
   shift
   CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"$PWD/target"} cargo "$subcommand" \
     --manifest-path "$candidate_manifest" \
-    --config "patch.crates-io.fips-identity.path='$FIPS_IDENTITY_CRATE_DIR'" \
-    --config "patch.crates-io.fips-core.path='$FIPS_CORE_CRATE_DIR'" \
-    --config "patch.crates-io.fips-tcp.path='$FIPS_TCP_CRATE_DIR'" \
-    --config "patch.crates-io.fips-tcp-endpoint.path='$FIPS_TCP_ENDPOINT_CRATE_DIR'" \
+    --config "patch.crates-io.nvpn-fips-identity.path='$FIPS_IDENTITY_CRATE_DIR'" \
+    --config "patch.crates-io.nvpn-fips-core.path='$FIPS_CORE_CRATE_DIR'" \
+    --config "patch.crates-io.nvpn-fips-tcp.path='$FIPS_TCP_CRATE_DIR'" \
+    --config "patch.crates-io.nvpn-fips-tcp-endpoint.path='$FIPS_TCP_ENDPOINT_CRATE_DIR'" \
     --config "patch.crates-io.hashtree-core.path='$HASHTREE_CORE_CRATE_DIR'" \
     --config "patch.crates-io.hashtree-fips-transport.path='$HASHTREE_FIPS_TRANSPORT_CRATE_DIR'" \
     "$@"
