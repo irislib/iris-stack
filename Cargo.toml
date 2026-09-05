@@ -11,9 +11,9 @@ publish = false
 anyhow = "1"
 cashu-credit = "=0.3.0"
 cashu-service = { version = "=0.3.1", features = ["simulation"] }
-fips-core = { package = "nvpn-fips-core", version = "=0.4.65" }
+fips-core = { package = "nvpn-fips-core", version = "=0.4.74" }
 hashtree-core = "=0.2.89"
-hashtree-fips-transport = "=0.4.12"
+hashtree-fips-transport = "=0.4.13"
 hashtree-lmdb = "=0.2.87"
 hashtree-network = "=0.2.87"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
