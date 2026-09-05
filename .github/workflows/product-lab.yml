@@ -68,10 +68,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install CDK protobuf compiler
+      - name: Install Rust build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes protobuf-compiler
+          sudo apt-get install --yes libdbus-1-dev pkg-config protobuf-compiler
       - name: Run real Cashu failure and recovery gate
         run: cargo test --locked --test cashu_payment_product -- --nocapture
 
@@ -85,9 +85,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install CDK protobuf compiler
+      - name: Install Rust build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes protobuf-compiler
+          sudo apt-get install --yes libdbus-1-dev pkg-config protobuf-compiler
       - name: Run released product process gate
         run: scripts/product-lab.sh
