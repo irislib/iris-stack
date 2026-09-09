@@ -2,7 +2,7 @@
 name = "iris-stack-lab"
 version = "0.1.0"
 edition = "2024"
-description = "Process-level integration lab for same-host Iris substrate composition"
+description = "Process-level integration lab for Iris products and shared transports"
 homepage = "https://git.iris.to/#/npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-stack"
 repository = "https://github.com/irislib/iris-stack"
 publish = false
@@ -11,11 +11,11 @@ publish = false
 anyhow = "1"
 cashu-credit = "=0.3.0"
 cashu-service = { version = "=0.3.1", features = ["simulation"] }
-fips-core = { package = "nvpn-fips-core", version = "=0.4.74" }
+fips-core = { package = "nvpn-fips-core", version = "=0.4.78" }
 hashtree-core = "=0.2.89"
-hashtree-fips-transport = "=0.4.13"
+hashtree-fips-transport = "=0.4.17"
 hashtree-lmdb = "=0.2.88"
-hashtree-network = "=0.2.87"
+hashtree-network = "=0.2.88"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

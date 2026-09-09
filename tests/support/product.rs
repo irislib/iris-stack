@@ -67,6 +67,7 @@ enable_webrtc = false
 enable_fips = true
 fips_discovery_scope = "fips-overlay-v1"
 fips_relays = []
+fips_websocket_seed_urls = []
 fips_peers = [{}]
 enable_fips_udp = true
 fips_udp_bind_addr = "{}"

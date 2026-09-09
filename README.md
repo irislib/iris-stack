@@ -5,6 +5,9 @@ communication, connectivity, storage, social trust, and money. Independent
 participants cooperate under the same rules without making a platform account,
 domain, server, or payment provider their authority.
 
+The native integration lab exercises released products across relayless transit,
+network partitions, provider replacement, and shared storage.
+
 ## Documentation
 
 - [Architecture and capability layers](docs/iris-stack.md)

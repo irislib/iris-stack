@@ -340,6 +340,9 @@
       "cross-repository black-box processes",
       "graceful and forced process death",
       "provider replacement",
+      "relayless transit without application membership",
+      "partition-created events and verified blobs after rejoin",
+      "idle process CPU and transit bandwidth after recovery",
       "released-artifact compatibility",
       "product-owned outbound link preservation"
     ]

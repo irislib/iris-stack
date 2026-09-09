@@ -2,12 +2,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use serde_json::Value;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, Lines};
-use tokio::process::{Child, ChildStdout, Command};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, Command};
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
@@ -54,8 +56,9 @@ pub struct CapturedProcess {
 pub struct ManagedProcess {
     label: String,
     child: Child,
-    lines: Lines<BufReader<ChildStdout>>,
-    stderr: JoinHandle<String>,
+    lines: mpsc::UnboundedReceiver<std::io::Result<String>>,
+    stderr: JoinHandle<()>,
+    stderr_output: Arc<Mutex<String>>,
     stdout: String,
 }
 
@@ -70,72 +73,162 @@ impl ManagedProcess {
             .spawn()
             .with_context(|| format!("spawn {label}"))?;
         let stdout = child.stdout.take().context("child stdout was not piped")?;
-        let mut stderr = child.stderr.take().context("child stderr was not piped")?;
+        let stderr = child.stderr.take().context("child stderr was not piped")?;
+        let (stdout_tx, lines) = mpsc::unbounded_channel();
+        // Drain independently of fixture commands: an idle provider's logs must
+        // never fill its pipe and block the application's networking runtime.
+        tokio::spawn(async move {
+            let mut lines = BufReader::new(stdout).lines();
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => {
+                        if stdout_tx.send(Ok(line)).is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(error) => {
+                        let _ = stdout_tx.send(Err(error));
+                        break;
+                    }
+                }
+            }
+        });
+        let stderr_output = Arc::new(Mutex::new(String::new()));
+        let task_output = Arc::clone(&stderr_output);
         let stderr = tokio::spawn(async move {
-            let mut output = String::new();
-            let _ = stderr.read_to_string(&mut output).await;
-            output
+            let mut lines = BufReader::new(stderr).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let mut output = task_output.lock().unwrap();
+                output.push_str(&line);
+                output.push('\n');
+            }
         });
         Ok(Self {
             label,
             child,
-            lines: BufReader::new(stdout).lines(),
+            lines,
             stderr,
+            stderr_output,
             stdout: String::new(),
         })
     }
 
+    #[allow(dead_code)]
+    pub fn stderr_snapshot(&self) -> String {
+        self.stderr_output.lock().unwrap().clone()
+    }
+
+    #[allow(dead_code)] // Optional resource sample in the native product gate.
+    pub async fn cpu_seconds(&self) -> Result<Option<f64>> {
+        if !cfg!(unix) {
+            return Ok(None);
+        }
+        let pid = self
+            .child
+            .id()
+            .context("process exited before CPU sample")?;
+        let mut command = Command::new(if cfg!(target_os = "linux") {
+            "getconf"
+        } else {
+            "ps"
+        });
+        if cfg!(target_os = "linux") {
+            command.arg("CLK_TCK");
+        } else {
+            command.args(["-o", "time=", "-p", &pid.to_string()]);
+        }
+        let output = command.output().await;
+        let output = match output {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            result => result.context("read cumulative process CPU time")?,
+        };
+        ensure!(
+            output.status.success(),
+            "CPU sampler failed for {}",
+            self.label
+        );
+        let raw = String::from_utf8(output.stdout)?;
+        #[cfg(target_os = "linux")]
+        {
+            // Linux ps rounds to whole seconds, too coarse for the idle budget.
+            let ticks_per_second: f64 = raw.trim().parse()?;
+            ensure!(ticks_per_second > 0.0, "invalid process clock tick rate");
+            if !Path::new("/proc/self/stat").exists() {
+                return Ok(None);
+            }
+            let stat = fs::read_to_string(format!("/proc/{pid}/stat"))?;
+            let mut fields = stat
+                .rsplit_once(") ")
+                .context("parse process stat")?
+                .1
+                .split_whitespace();
+            let user: u64 = fields.nth(11).context("missing user CPU ticks")?.parse()?;
+            let system: u64 = fields.next().context("missing system CPU ticks")?.parse()?;
+            Ok(Some((user + system) as f64 / ticks_per_second))
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            // These freshly started processes report [hours:]minutes:seconds.
+            raw.trim()
+                .split(':')
+                .try_fold(0.0, |total, part| {
+                    Ok(total * 60.0 + part.parse::<f64>().context("parse CPU time")?)
+                })
+                .map(Some)
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn stdout_snapshot(&mut self) -> String {
+        while let Ok(Ok(line)) = self.lines.try_recv() {
+            self.stdout.push_str(&line);
+            self.stdout.push('\n');
+        }
+        self.stdout.clone()
+    }
+
     #[allow(dead_code)] // Used by other process-test crates sharing this helper.
     pub async fn line_containing(&mut self, marker: &str) -> Result<String> {
-        let label = self.label.clone();
-        timeout(WAIT, async {
-            loop {
-                let Some(line) = self
-                    .lines
-                    .next_line()
-                    .await
-                    .with_context(|| format!("read {label} stdout"))?
-                else {
-                    bail!("{label} exited before {marker}; stdout:\n{}", self.stdout);
-                };
-                self.stdout.push_str(&line);
-                self.stdout.push('\n');
-                if line.contains(marker) {
-                    return Ok(line);
-                }
-            }
+        self.wait_for_line(marker, |line| {
+            line.contains(marker).then(|| line.to_string())
         })
         .await
-        .with_context(|| {
-            format!(
-                "timed out waiting for {marker} from {label}; stdout:\n{}",
-                self.stdout
-            )
-        })?
     }
 
     #[allow(dead_code)] // Used by product-process tests, not every integration-test crate.
     pub async fn json_event(&mut self, event: &str) -> Result<Value> {
+        self.wait_for_line(&format!("JSON event {event}"), |line| {
+            let value: Value = serde_json::from_str(line).ok()?;
+            (value.get("event").and_then(Value::as_str) == Some(event)).then_some(value)
+        })
+        .await
+    }
+
+    async fn wait_for_line<T>(
+        &mut self,
+        marker: &str,
+        matches: impl Fn(&str) -> Option<T>,
+    ) -> Result<T> {
         let label = self.label.clone();
         timeout(WAIT, async {
             loop {
                 let Some(line) = self
                     .lines
-                    .next_line()
+                    .recv()
                     .await
+                    .transpose()
                     .with_context(|| format!("read {label} stdout"))?
                 else {
                     bail!(
-                        "{label} exited before JSON event {event}; stdout:\n{}",
-                        self.stdout
+                        "{label} exited before {marker}; stdout:\n{}\nstderr:\n{}",
+                        self.stdout,
+                        self.stderr_snapshot()
                     );
                 };
                 self.stdout.push_str(&line);
                 self.stdout.push('\n');
-                let Ok(value) = serde_json::from_str::<Value>(&line) else {
-                    continue;
-                };
-                if value.get("event").and_then(Value::as_str) == Some(event) {
+                if let Some(value) = matches(&line) {
                     return Ok(value);
                 }
             }
@@ -143,8 +236,9 @@ impl ManagedProcess {
         .await
         .with_context(|| {
             format!(
-                "timed out waiting for JSON event {event} from {label}; stdout:\n{}",
-                self.stdout
+                "timed out waiting for {marker} from {label}; stdout:\n{}\nstderr:\n{}",
+                self.stdout,
+                self.stderr_snapshot()
             )
         })?
     }
@@ -196,27 +290,25 @@ impl ManagedProcess {
 
     async fn collect(mut self) -> Result<CapturedProcess> {
         let label = self.label.clone();
-        let mut reader = self.lines.into_inner();
-        let (rest, status) = timeout(WAIT, async {
-            let mut rest = String::new();
-            reader
-                .read_to_string(&mut rest)
-                .await
-                .with_context(|| format!("drain {label} stdout"))?;
+        let status = timeout(WAIT, async {
+            while let Some(line) = self.lines.recv().await {
+                self.stdout.push_str(&line.context("drain process stdout")?);
+                self.stdout.push('\n');
+            }
             let status = self
                 .child
                 .wait()
                 .await
                 .with_context(|| format!("wait for {label}"))?;
-            Ok::<_, anyhow::Error>((rest, status))
+            Ok::<_, anyhow::Error>(status)
         })
         .await
         .with_context(|| format!("timed out collecting {label}"))??;
-        self.stdout.push_str(&rest);
-        let stderr = timeout(WAIT, self.stderr)
+        timeout(WAIT, self.stderr)
             .await
             .with_context(|| format!("timed out collecting {label} stderr"))?
             .context("join stderr reader")?;
+        let stderr = self.stderr_output.lock().unwrap().clone();
         Ok(CapturedProcess {
             status,
             stdout: self.stdout,

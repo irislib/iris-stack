@@ -117,6 +117,8 @@ async fn run_product_scenario() -> Result<()> {
         .arg("run")
         .arg(&chat_data)
         .env("IRIS_CHAT_SAME_HOST_HASHTREE", "1")
+        .env("IRIS_DEMO_RELAYS", "")
+        .env("IRIS_FIPS_WEBSOCKET_SEED_URLS", "")
         .env("IRIS_CHAT_FIPS_LOCAL_RENDEZVOUS_ADDR", &local_rendezvous)
         .env("HTREE_CONFIG_DIR", &chat_config)
         .env(
@@ -156,6 +158,7 @@ async fn run_product_scenario() -> Result<()> {
             format!("{remote_npub}={remote_udp}"),
         )
         .env("IRIS_DRIVE_FIPS_ENABLE_BOOTSTRAP", "false")
+        .env("IRIS_FIPS_WEBSOCKET_SEED_URLS", "")
         .env(
             "RUST_LOG",
             std::env::var("IRIS_STACK_PRODUCT_LOG").unwrap_or_else(|_| "warn".to_string()),

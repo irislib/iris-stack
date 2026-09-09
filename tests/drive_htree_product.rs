@@ -128,6 +128,7 @@ async fn run_product_scenario() -> Result<()> {
             format!("{remote_npub}={remote_udp}"),
         )
         .env("IRIS_DRIVE_FIPS_ENABLE_BOOTSTRAP", "false")
+        .env("IRIS_FIPS_WEBSOCKET_SEED_URLS", "")
         .env(
             "RUST_LOG",
             std::env::var("IRIS_STACK_PRODUCT_LOG").unwrap_or_else(|_| "warn".to_string()),
