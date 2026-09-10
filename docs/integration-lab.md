@@ -149,16 +149,16 @@ time for each process as a percentage of one core, and reads Hashtree's native
 per-peer byte counters. Combined transit send/receive traffic must stay below
 4 KiB/s, allowing ordinary keepalives and routing maintenance while detecting
 continued payload or retry storms. Each process must stay at or below 5% of one CPU
-core; `IRIS_STACK_IDLE_MAX_CPU_PERCENT` explicitly overrides that generous
-hot-loop budget for a different runner. Unsupported CPU sampling is reported
-as unavailable. Linux reads `/proc` CPU ticks, while macOS reads cumulative
+core; `IRIS_STACK_IDLE_MAX_CPU_PERCENT` can override that generous
+hot-loop budget for a diagnostic run. Release gates retain the 5% limit.
+Linux reads `/proc` CPU ticks, while macOS reads cumulative
 `ps` CPU time; these remain short regression samples, not precise benchmarks.
 The checks cover native mesh processes, not browser or UI CPU.
 The transit must have two live peers at both counter samples. Missing or
 malformed byte/packet counters, counter resets, process exits, and CPU reader
-errors fail the gate. Only an unsupported CPU reader or unavailable sampling
-tool skips CPU enforcement; the result explicitly prints `unavailable`, and
-the traffic checks still run.
+errors fail the gate. Linux and release gates require every CPU measurement;
+an unavailable reader fails. Other diagnostic runs can report unavailable CPU
+sampling while still enforcing traffic limits.
 
 These idle checks are part of the standard `scripts/product-lab.sh` command;
 there is no additional resource-test switch. The released-product workflow
@@ -171,6 +171,34 @@ This is a regression gate on those runs, not continuous runtime monitoring.
 Upstream Chat, Drive, and Hashtree release commands do not currently invoke this
 cross-product gate automatically; a release coordinator runs the standard
 command or calls the reusable workflow with the new public artifact pins.
+
+The reusable workflow requires `lab_rev` to match the exact Iris Stack commit
+in the caller's `uses: irislib/iris-stack/.github/workflows/product-lab.yml@...`
+pin. It explicitly checks out that lab repository; the caller's repository is
+never used as the test harness. It accepts exact public `chat_rev` and
+`drive_rev` commits, plus either `htree_version` or a public `htree_rev` commit.
+Unspecified products retain the known-good coordinates in the launcher.
+Candidate source commits must be published before the gate; product artifacts
+and crates can remain unpublished until it succeeds. A shared-library change
+is exercised only when the selected product sources actually adopt it.
+
+The existing `scripts/product-lab.sh` entrypoint delegates source installation
+and receipts to `scripts/product-lab.py` and requires Python 3.8 or newer. For
+example, set `IRIS_STACK_RELEASE_GATE=1`, `IRIS_STACK_LAB_REV` to the clean lab
+checkout's full commit, and `IRIS_STACK_DRIVE_REV` to a public candidate commit.
+Use a separate `IRIS_STACK_PRODUCT_INSTALL_ROOT` for each concurrent invocation.
+Release mode rejects local binary and noncanonical repository overrides and
+requires CPU measurements. Diagnostic binary overrides remain supported and
+are recorded as local binaries, without claiming a public source revision.
+
+After all three process gates and owned-process cleanup succeed, the launcher
+writes `receipt.json` in the install root. It contains the lab commit and
+cleanliness, selected public source commits or crate version, SHA-256 of each
+executed binary, and the measured mesh resource and recovery results. A failed
+invocation removes any earlier success receipt at that location. Hosted runs
+retain the receipt as the `iris-stack-product-gate` artifact. A release consumer
+must match the receipt's candidate, lab, and companion product pins; a green
+run for a previous tuple does not authorize a new release.
 
 Three serial native runs on 2026-09-09 used the pinned Chat and Drive source
 fixtures and Hashtree 0.2.146, built with their locked registry dependencies.

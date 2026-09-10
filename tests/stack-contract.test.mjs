@@ -96,3 +96,15 @@ test('push and pull-request CI covers native and product composition', () => {
   assert.match(productWorkflow, /^  pull_request:\n    paths:/m);
   assert.match(productWorkflow, /^  chat-drive-hashtree:\n    runs-on:/m);
 });
+
+test('reusable product gate checks out the pinned lab and retains measured provenance', () => {
+  assert.match(productWorkflow, /lab_rev:\n\s+description:.*\n\s+required: true/);
+  assert.equal(productWorkflow.match(/repository: irislib\/iris-stack/g).length, 2);
+  assert.equal(productWorkflow.match(/ref: \$\{\{ env.IRIS_STACK_LAB_REV \}\}/g).length, 2);
+  assert.match(productWorkflow, /IRIS_STACK_RELEASE_GATE: '1'/);
+  assert.match(productWorkflow, /IRIS_STACK_HTREE_REV: \$\{\{ inputs.htree_rev \}\}/);
+  assert.match(productWorkflow, /path: target\/product-lab\/receipt.json/);
+  assert.match(productWorkflow, /if-no-files-found: error/);
+  assert.doesNotMatch(productWorkflow, /continue-on-error:/);
+  assert.match(nativeWorkflow, /python3 tests\/test_product_lab.py/);
+});

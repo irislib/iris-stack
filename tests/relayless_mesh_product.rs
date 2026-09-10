@@ -12,7 +12,7 @@ use product::{
     required_binary, reserve_tcp_address, reserve_udp_address, spawn_htree,
     write_hashtree_read_config,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 use support::process::ManagedProcess;
 use tokio::process::Command;
 use tokio::time::timeout;
@@ -160,7 +160,7 @@ async fn run_mesh() -> Result<()> {
     let initial_event_ms = initial.elapsed().as_millis();
     let initial_blob = put_blob(&root, &mut drive, "initial").await?;
     let initial_blob_ms = fetch_blob(&mut chat, &initial_blob).await?;
-    idle_resources(
+    let before_partition = idle_resources(
         "before partition",
         [&chat, &transit_process, &drive],
         &transit_http,
@@ -191,7 +191,7 @@ async fn run_mesh() -> Result<()> {
     assert_direct_transit(&status(&mut chat).await?, &transit_npub)?;
     assert_direct_transit(&status(&mut drive).await?, &transit_npub)?;
     assert_transit_links(&transit_http, chat_npub, &drive_identity.npub).await?;
-    idle_resources(
+    let after_recovery = idle_resources(
         "after recovery",
         [&chat, &replacement, &drive],
         &transit_http,
@@ -210,6 +210,18 @@ async fn run_mesh() -> Result<()> {
     eprintln!(
         "relayless product mesh: signed events 4/4, verified blobs 2/2, direct peers A=1 B=2 C=1, public relays=0; initial events {initial_event_ms}ms, initial blob {initial_blob_ms}ms, rejoin events {recovery_ms}ms, rejoined blob {recovered_blob_ms}ms"
     );
+    if let Some(path) = std::env::var_os("IRIS_STACK_MESH_METRICS_PATH") {
+        fs::write(
+            path,
+            serde_json::to_vec_pretty(&json!({
+                "signed_events": 4, "verified_blobs": 2,
+                "public_relays": 0, "direct_peers": [1, 2, 1],
+                "latency_ms": {"initial_events": initial_event_ms, "initial_blob": initial_blob_ms,
+                    "rejoin_events": recovery_ms, "rejoined_blob": recovered_blob_ms},
+                "idle": [before_partition, after_recovery],
+            }))?,
+        )?;
+    }
     Ok(())
 }
 
@@ -222,7 +234,7 @@ async fn idle_resources(
     phase: &str,
     processes: [&ManagedProcess; 3],
     transit_http: &str,
-) -> Result<()> {
+) -> Result<Value> {
     let cpu_budget = std::env::var("IRIS_STACK_IDLE_MAX_CPU_PERCENT")
         .ok()
         .map(|value| value.parse::<f64>())
@@ -245,12 +257,17 @@ async fn idle_resources(
     let elapsed = started.elapsed().as_secs_f64();
     let after_traffic = transit_traffic(transit_http).await?;
     let mut cpu_percent = [None; 3];
+    let cpu_required =
+        cfg!(target_os = "linux") || std::env::var("IRIS_STACK_REQUIRE_CPU").as_deref() == Ok("1");
     for (index, process) in processes.iter().enumerate() {
-        if let (Some(before), Some(after)) = (before_cpu[index], process.cpu_seconds().await?) {
-            let used = after - before;
-            ensure!(used >= 0.0, "cumulative CPU time decreased");
-            cpu_percent[index] = Some(100.0 * used / elapsed);
-        }
+        cpu_percent[index] = checked_cpu_percent(
+            before_cpu[index],
+            process.cpu_seconds().await?,
+            elapsed,
+            cpu_budget,
+            cpu_required,
+        )
+        .with_context(|| format!("idle process {}", ["A", "B", "C"][index]))?;
     }
     let mut traffic = [0; 4];
     for index in 0..traffic.len() {
@@ -266,21 +283,69 @@ async fn idle_resources(
         cpu_label(cpu_percent[1]),
         cpu_label(cpu_percent[2])
     );
-    for (label, used) in ["A", "B", "C"].into_iter().zip(cpu_percent) {
-        if let Some(used) = used {
-            ensure!(
-                used <= cpu_budget,
-                "idle process {label} CPU {used:.2}% exceeded {cpu_budget:.2}% of one core"
-            );
-        }
-    }
     // This generous wire budget tolerates keepalives and route maintenance,
     // while catching a continuing payload/retry storm after completed work.
     ensure!(
         bytes_per_second < 4096.0,
         "idle transit exceeded 4 KiB/s: {bytes_per_second:.1} B/s"
     );
-    Ok(())
+    Ok(
+        json!({"phase": phase, "seconds": elapsed, "cpu_percent": cpu_percent,
+        "cpu_budget_percent": cpu_budget, "cpu_required": cpu_required,
+        "sent_bytes": sent, "received_bytes": received,
+        "sent_packets": sent_packets, "received_packets": received_packets,
+        "combined_bytes_per_second": bytes_per_second, "wire_budget_bytes_per_second": 4096}),
+    )
+}
+
+fn checked_cpu_percent(
+    before: Option<f64>,
+    after: Option<f64>,
+    elapsed: f64,
+    budget: f64,
+    required: bool,
+) -> Result<Option<f64>> {
+    let (Some(before), Some(after)) = (before, after) else {
+        ensure!(!required, "CPU measurement unavailable");
+        return Ok(None);
+    };
+    ensure!(
+        before.is_finite() && after.is_finite() && before >= 0.0 && after >= before,
+        "invalid or decreasing cumulative CPU time"
+    );
+    ensure!(
+        elapsed.is_finite() && elapsed > 0.0,
+        "invalid CPU sample duration"
+    );
+    let used = 100.0 * (after - before) / elapsed;
+    ensure!(
+        used <= budget,
+        "CPU {used:.2}% exceeded {budget:.2}% of one core"
+    );
+    Ok(Some(used))
+}
+
+#[test]
+fn resource_gate_rejects_unavailable_reset_and_excess_cpu() {
+    for (before, after) in [
+        (None, Some(1.0)),
+        (Some(1.0), None),
+        (None, None),
+        (Some(2.0), Some(1.0)),
+        (Some(f64::NAN), Some(1.0)),
+        (Some(0.0), Some(f64::INFINITY)),
+        (Some(0.0), Some(0.051)),
+    ] {
+        assert!(checked_cpu_percent(before, after, 1.0, 5.0, true).is_err());
+    }
+    assert_eq!(
+        checked_cpu_percent(Some(0.0), Some(0.05), 1.0, 5.0, true).unwrap(),
+        Some(5.0)
+    );
+    assert_eq!(
+        checked_cpu_percent(None, None, 1.0, 5.0, false).unwrap(),
+        None
+    );
 }
 
 fn cpu_label(value: Option<f64>) -> String {

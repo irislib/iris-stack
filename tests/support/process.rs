@@ -153,7 +153,10 @@ impl ManagedProcess {
         {
             // Linux ps rounds to whole seconds, too coarse for the idle budget.
             let ticks_per_second: f64 = raw.trim().parse()?;
-            ensure!(ticks_per_second > 0.0, "invalid process clock tick rate");
+            ensure!(
+                ticks_per_second.is_finite() && ticks_per_second > 0.0,
+                "invalid process clock tick rate"
+            );
             if !Path::new("/proc/self/stat").exists() {
                 return Ok(None);
             }

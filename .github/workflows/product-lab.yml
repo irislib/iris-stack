@@ -7,6 +7,8 @@ on:
       - Cargo.lock
       - Cargo.toml
       - scripts/product-lab.sh
+      - scripts/product-lab.py
+      - tests/test_product_lab.py
       - src/bin/cashu-stack-fixture.rs
       - tests/cashu_payment_product.rs
       - tests/chat_drive_htree_product.rs
@@ -19,6 +21,8 @@ on:
       - Cargo.lock
       - Cargo.toml
       - scripts/product-lab.sh
+      - scripts/product-lab.py
+      - tests/test_product_lab.py
       - src/bin/cashu-stack-fixture.rs
       - tests/cashu_payment_product.rs
       - tests/chat_drive_htree_product.rs
@@ -27,12 +31,20 @@ on:
       - tests/support/**
   workflow_call:
     inputs:
+      lab_rev:
+        description: Exact Iris Stack commit matching the reusable workflow pin
+        required: true
+        type: string
       drive_rev:
         description: Exact public Iris Drive commit
         required: false
         type: string
       htree_version:
         description: Exact released hashtree-cli version
+        required: false
+        type: string
+      htree_rev:
+        description: Exact public Hashtree candidate commit (instead of htree_version)
         required: false
         type: string
       chat_rev:
@@ -49,6 +61,10 @@ on:
         description: Exact released hashtree-cli version
         required: false
         type: string
+      htree_rev:
+        description: Exact public Hashtree candidate commit (instead of htree_version)
+        required: false
+        type: string
       chat_rev:
         description: Exact public Iris Chat commit
         required: false
@@ -57,12 +73,19 @@ on:
 permissions:
   contents: read
 
+env:
+  IRIS_STACK_LAB_REV: ${{ inputs.lab_rev || github.sha }}
+
 jobs:
   cashu-service-payment:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: irislib/iris-stack
+          ref: ${{ env.IRIS_STACK_LAB_REV }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Install Rust build dependencies
         run: |
@@ -75,11 +98,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      IRIS_STACK_RELEASE_GATE: '1'
       IRIS_STACK_DRIVE_REV: ${{ inputs.drive_rev }}
       IRIS_STACK_HTREE_VERSION: ${{ inputs.htree_version }}
+      IRIS_STACK_HTREE_REV: ${{ inputs.htree_rev }}
       IRIS_STACK_CHAT_REV: ${{ inputs.chat_rev }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: irislib/iris-stack
+          ref: ${{ env.IRIS_STACK_LAB_REV }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Install Rust build dependencies
         run: |
@@ -87,3 +116,10 @@ jobs:
           sudo apt-get install --yes libdbus-1-dev pkg-config protobuf-compiler
       - name: Run released product process gate
         run: scripts/product-lab.sh
+      - name: Retain exact product provenance and resource measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: iris-stack-product-gate
+          path: target/product-lab/receipt.json
+          if-no-files-found: error
+          retention-days: 14

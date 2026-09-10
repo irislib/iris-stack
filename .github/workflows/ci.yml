@@ -21,4 +21,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes libdbus-1-dev pkg-config protobuf-compiler
       - name: Run native process and protocol tests
-        run: cargo test --locked --all-targets
+        run: |
+          python3 tests/test_product_lab.py
+          cargo test --locked --all-targets
