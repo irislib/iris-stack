@@ -144,7 +144,10 @@ must also transfer after rejoin. Timings are printed for event delivery, blob
 retrieval, and recovery.
 
 Before partition and after recovery, the gate allows three seconds for final
-acknowledgements, then samples fifteen idle seconds. It reports cumulative CPU
+acknowledgements, then samples 65 idle seconds. Each fixed window spans at
+least one 60-second managed reputation maintenance interval, regardless of
+when sampling begins. The two windows total 130 seconds; allow about three
+minutes for the runtime test, excluding fixture compilation. It reports cumulative CPU
 time for each process as a percentage of one core, and reads Hashtree's native
 per-peer byte counters. Combined transit send/receive traffic must stay below
 4 KiB/s, allowing ordinary keepalives and routing maintenance while detecting

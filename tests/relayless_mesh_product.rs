@@ -245,7 +245,9 @@ async fn idle_resources(
         cpu_budget.is_finite() && cpu_budget > 0.0,
         "idle CPU budget must be positive and finite"
     );
-    // Let final ACKs settle, then include multiple ordinary maintenance ticks.
+    // Let final ACKs settle before sampling. The fixed 65-second window
+    // spans at least one 60-second managed reputation maintenance interval,
+    // regardless of the phase at which sampling begins.
     tokio::time::sleep(Duration::from_secs(3)).await;
     let before_traffic = transit_traffic(transit_http).await?;
     let mut before_cpu = [None; 3];
@@ -253,7 +255,7 @@ async fn idle_resources(
         before_cpu[index] = process.cpu_seconds().await?;
     }
     let started = Instant::now();
-    tokio::time::sleep(Duration::from_secs(15)).await;
+    tokio::time::sleep(Duration::from_secs(65)).await;
     let elapsed = started.elapsed().as_secs_f64();
     let after_traffic = transit_traffic(transit_http).await?;
     let mut cpu_percent = [None; 3];
