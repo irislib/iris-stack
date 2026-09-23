@@ -58,6 +58,8 @@ async fn run_mesh() -> Result<()> {
         .env("IRIS_CHAT_SAME_HOST_HASHTREE", "1")
         .env("IRIS_CHAT_FIPS_LOCAL_RENDEZVOUS_ADDR", &chat_rendezvous)
         .env("IRIS_CHAT_FIPS_UDP_BIND_ADDR", &chat_udp)
+        // Direct upgrades would bypass the transit node this test restarts.
+        .env("IRIS_CHAT_FIPS_ENABLE_WEBRTC", "false")
         .env("IRIS_DEMO_RELAYS", "")
         .env("IRIS_FIPS_WEBSOCKET_SEED_URLS", "")
         .env(
