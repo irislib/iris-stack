@@ -116,7 +116,7 @@ async fn run_product_scenario() -> Result<()> {
     chat_command
         .arg("run")
         .arg(&chat_data)
-        .env("IRIS_CHAT_SAME_HOST_HASHTREE", "1")
+        .env_remove("IRIS_CHAT_SAME_HOST_HASHTREE")
         .env("IRIS_DEMO_RELAYS", "")
         .env("IRIS_FIPS_WEBSOCKET_SEED_URLS", "")
         .env("IRIS_CHAT_FIPS_LOCAL_RENDEZVOUS_ADDR", &local_rendezvous)
