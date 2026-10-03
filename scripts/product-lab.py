@@ -79,7 +79,11 @@ def main():
             for item in binaries:
                 command += ["--bin", item]
             command.append(package)
-            subprocess.run(command, check=True, env={**env, "CARGO_NET_GIT_FETCH_WITH_CLI": "true"})
+            install_env = {**env, "CARGO_NET_GIT_FETCH_WITH_CLI": "true"}
+            if provenance["source"].startswith("htree://"):
+                # Locate the public source announcement without changing product runtime relays.
+                install_env["NOSTR_RELAYS"] = "wss://relay.primal.net"
+            subprocess.run(command, check=True, env=install_env)
             binary = str(install / "bin" / binaries[0])
         require(os.access(binary, os.X_OK), f"Product binary is not executable: {binary}")
         env[binary_key] = str(Path(binary).resolve())

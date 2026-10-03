@@ -23,12 +23,16 @@ class ProductLabTests(unittest.TestCase):
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("IRIS_STACK_")}
         self.env.update(PATH=f"{self.bin}:{self.env['PATH']}",
                         IRIS_STACK_PRODUCT_INSTALL_ROOT=str(self.install),
-                        TEST_CALLS=str(self.calls), TEST_RUNTIME_ENV=str(self.root / "runtime-env.json"))
+                        TEST_CALLS=str(self.calls), TEST_COMMAND_ENVS=str(self.root / "command-envs.jsonl"),
+                        TEST_RUNTIME_ENV=str(self.root / "runtime-env.json"))
         self.executable("cargo", '''#!/usr/bin/env python3
 import json, os, pathlib, sys
 args = sys.argv[1:]
 with open(os.environ["TEST_CALLS"], "a") as f:
     f.write(json.dumps(args) + "\\n")
+with open(os.environ["TEST_COMMAND_ENVS"], "a") as f:
+    f.write(json.dumps({"args": args, "relays": os.environ.get("NOSTR_RELAYS"),
+                        "cli_fetch": os.environ.get("CARGO_NET_GIT_FETCH_WITH_CLI")}) + "\\n")
 if os.environ.get("TEST_FAIL") in args:
     sys.exit(23)
 if args[0] == "install":
@@ -73,6 +77,30 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertEqual(receipt["products"]["hashtree"]["version"], "0.2.146")
         self.assertEqual(receipt["metrics"]["public_relays"], 0)
         self.assertEqual(len(receipt["products"]["chat"]["sha256"]), 64)
+
+    def test_hashtree_source_relays_are_scoped_to_source_install(self):
+        for inherited_relays in [None, "wss://runtime.example.invalid"]:
+            with self.subTest(inherited_relays=inherited_relays):
+                self.env.pop("NOSTR_RELAYS", None)
+                if inherited_relays:
+                    self.env["NOSTR_RELAYS"] = inherited_relays
+                environments = self.root / "command-envs.jsonl"
+                environments.unlink(missing_ok=True)
+                result = self.run_lab(IRIS_STACK_DRIVE_REV=SHA)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                records = [json.loads(line) for line in environments.read_text().splitlines()]
+                source_installs = [record for record in records if "iris-drive-core" in record["args"]]
+                self.assertEqual(len(source_installs), 1)
+                source_install = source_installs[0]
+                args = source_install["args"]
+                self.assertEqual(args[args.index("--git") + 1],
+                                 "htree://npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-drive")
+                self.assertEqual(args[args.index("--rev") + 1], SHA)
+                self.assertEqual(source_install["relays"], "wss://relay.primal.net")
+                self.assertEqual(source_install["cli_fetch"], "true")
+                for record in records:
+                    if record is not source_install:
+                        self.assertEqual(record["relays"], inherited_relays, record["args"])
 
     def test_hashtree_candidate_uses_exact_public_source_and_locked_install(self):
         result = self.run_lab(IRIS_STACK_HTREE_REV=SHA)
