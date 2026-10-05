@@ -96,7 +96,7 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
                 self.assertEqual(args[args.index("--git") + 1],
                                  "htree://npub1xdhnr9mrv47kkrn95k6cwecearydeh8e895990n3acntwvmgk2dsdeeycm/iris-drive")
                 self.assertEqual(args[args.index("--rev") + 1], SHA)
-                self.assertEqual(source_install["relays"], "wss://relay.primal.net")
+                self.assertEqual(source_install["relays"], "wss://relay.damus.io,wss://relay.primal.net")
                 self.assertEqual(source_install["cli_fetch"], "true")
                 for record in records:
                     if record is not source_install:
