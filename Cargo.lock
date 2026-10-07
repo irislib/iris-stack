@@ -1791,9 +1791,9 @@ dependencies = [
 
 [[package]]
 name = "hashtree-fips-transport"
-version = "0.4.20"
+version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0bde6e187ae7670498f269d3d56ff052101d2cf7086f79553c7a1e55a39d882"
+checksum = "d71bd2095e494f244959ad46238332ad52a299683d0349a2950a0f9b5c98326a"
 dependencies = [
  "async-trait",
  "hashtree-core",
@@ -2867,9 +2867,9 @@ dependencies = [
 
 [[package]]
 name = "nvpn-fips-core"
-version = "0.4.83"
+version = "0.4.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c073fb7b277e60bcbdeac60c05e3cb7c39df7ab2144af4de5f0f7b332d16b0c"
+checksum = "6687a0d516c6090a6590ec973ebef9dcec2c395f11f41a96119f973dfc60b8bb"
 dependencies = [
  "base64 0.22.1",
  "bluer",
@@ -2902,7 +2902,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-socks",
- "tokio-tungstenite 0.26.2",
+ "tokio-tungstenite 0.29.0",
  "tracing",
  "tun",
  "uuid",
@@ -2928,15 +2928,15 @@ dependencies = [
 
 [[package]]
 name = "nvpn-fips-tcp"
-version = "0.2.2"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d5078996e38a6e568e2783b93601dc55eb96bb3df0fa1c4307cdab80b85ab97"
+checksum = "47ca8e4600759514be32023c39147420a1af0b1cbd802a63b1aac5adf0a51ad1"
 
 [[package]]
 name = "nvpn-fips-tcp-endpoint"
-version = "0.2.18"
+version = "0.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26ae8eb058e45ee32577ffbf6b968b2b328b50d09fbc38c333bf53a02105ffe0"
+checksum = "8d08987e4a40edd91bf1c15f091199b5e291fe09364c195c59942281fb838994"
 dependencies = [
  "nvpn-fips-core",
  "nvpn-fips-tcp",
@@ -4485,8 +4485,12 @@ checksum = "8f72a05e828585856dacd553fba484c242c46e391fb0e58917c942ee9202915c"
 dependencies = [
  "futures-util",
  "log",
+ "rustls",
+ "rustls-pki-types",
  "tokio",
+ "tokio-rustls",
  "tungstenite 0.29.0",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -4746,6 +4750,8 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.9.5",
+ "rustls",
+ "rustls-pki-types",
  "sha1",
  "thiserror 2.0.18",
 ]
