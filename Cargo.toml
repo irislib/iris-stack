@@ -12,10 +12,10 @@ anyhow = "1"
 cashu-credit = "=0.3.0"
 cashu-service = { version = "=0.3.1", features = ["simulation"] }
 fips-core = { package = "nvpn-fips-core", version = "=0.4.107" }
-hashtree-core = "=0.2.89"
-hashtree-fips-transport = "=0.4.29"
-hashtree-lmdb = "=0.2.88"
-hashtree-network = "=0.2.88"
+hashtree-core = "=0.3.0"
+hashtree-fips-transport = "=0.5.0"
+hashtree-lmdb = "=0.3.0"
+hashtree-network = "=0.3.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

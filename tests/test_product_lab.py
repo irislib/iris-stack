@@ -70,11 +70,11 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         result = self.run_lab()
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.commands()
-        self.assertIn("=0.2.146", calls[0])
+        self.assertIn("=0.3.0", calls[0])
         self.assertEqual([c[c.index("--test") + 1] for c in calls if c[0] == "test"],
                          ["drive_htree_product", "chat_drive_htree_product", "relayless_mesh_product"])
         receipt = json.loads((self.install / "receipt.json").read_text())
-        self.assertEqual(receipt["products"]["hashtree"]["version"], "0.2.146")
+        self.assertEqual(receipt["products"]["hashtree"]["version"], "0.3.0")
         self.assertEqual(receipt["metrics"]["public_relays"], 0)
         self.assertEqual(len(receipt["products"]["chat"]["sha256"]), 64)
 
@@ -116,9 +116,9 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
     def test_invalid_or_conflicting_pins_fail_before_install(self):
         for overrides in [dict(IRIS_STACK_CHAT_REV="main"),
                           dict(IRIS_STACK_DRIVE_REV="a" * 39),
-                          dict(IRIS_STACK_HTREE_REV="v0.2.146"),
+                          dict(IRIS_STACK_HTREE_REV="v0.3.0"),
                           dict(IRIS_STACK_HTREE_VERSION="*"),
-                          dict(IRIS_STACK_HTREE_REV=SHA, IRIS_STACK_HTREE_VERSION="0.2.146")]:
+                          dict(IRIS_STACK_HTREE_REV=SHA, IRIS_STACK_HTREE_VERSION="0.3.0")]:
             with self.subTest(overrides=overrides):
                 result = self.run_lab(**overrides)
                 self.assertNotEqual(result.returncode, 0)

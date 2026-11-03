@@ -67,9 +67,9 @@ released-product gates cover the combined Chat/Drive topology, Drive's
 provider-replacement lifecycle, and native relayless transit and recovery.
 
 The checked-in Rust lockfile pins the substrate gate to the published
-`nvpn-fips-core` 0.4.94, `nvpn-fips-tcp` 0.2.4, and
-`hashtree-fips-transport` 0.4.27 artifacts while retaining `hashtree-core`
-0.2.89. Product fixtures and the separately released `htree` executable are
+`nvpn-fips-core` 0.4.107, `nvpn-fips-tcp` 0.2.6, and
+`hashtree-fips-transport` 0.5.0 artifacts with `hashtree-core`,
+`hashtree-network`, and `hashtree-lmdb` 0.3.0. Product fixtures and the separately released `htree` executable are
 supplied as exact coordinates at run time.
 
 ```text
@@ -311,7 +311,7 @@ cargo fmt --check
 
 The released-product gate is ignored by ordinary `cargo test` because it
 installs and runs external artifacts. The script pins Iris Drive commit
-`05751a828f2a20b3ed46d09569e6cf35ac4c537d`, `hashtree-cli` 0.2.146, and Iris Chat
+`05751a828f2a20b3ed46d09569e6cf35ac4c537d`, `hashtree-cli` 0.3.0, and Iris Chat
 commit `a4cafb1bb382593c9886d0a4314cf80292ef7850` by default. Chat's native
 release uses a date tag, so its fixture is built from the exact public source
 commit with its locked registry dependencies. Drive is fetched from its public

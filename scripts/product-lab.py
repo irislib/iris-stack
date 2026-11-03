@@ -51,7 +51,7 @@ def main():
         version = env.get("IRIS_STACK_HTREE_VERSION", "") if name == "hashtree" else ""
         require(not (version and rev), "Select htree_rev or htree_version, not both")
         if not rev and name == "hashtree":
-            version = version or "0.2.146"
+            version = version or "0.3.0"
         require(not rev or re.fullmatch(r"[0-9a-f]{40}", rev), f"{prefix}_REV must be an exact 40-character commit")
         require(not version or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?", version), "htree_version must be one exact version")
         if release:
@@ -72,7 +72,7 @@ def main():
     for name, package, features, binaries, binary_key, binary, provenance in plans:
         if not binary:
             if provenance["source"].startswith("htree://") and not (install / "bin/git-remote-htree").is_file():
-                subprocess.run(["cargo", "install", "--locked", "--root", str(install), "--version", "=0.2.89", "--bin", "git-remote-htree", "git-remote-htree"], check=True, env=env)
+                subprocess.run(["cargo", "install", "--locked", "--root", str(install), "--version", "=0.3.0", "--bin", "git-remote-htree", "git-remote-htree"], check=True, env=env)
             command = ["cargo", "install", "--locked", "--root", str(install)]
             command += (["--version", "=" + provenance["version"]] if "version" in provenance else ["--git", provenance["source"], "--rev", provenance["rev"]])
             command += ["--features", features]

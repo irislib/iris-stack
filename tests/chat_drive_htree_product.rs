@@ -20,6 +20,47 @@ use tokio::time::timeout;
 
 static PRODUCT_MATRIX_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
+#[tokio::test]
+async fn product_references_read_legacy_and_versioned_objects_from_shared_storage() -> Result<()> {
+    use hashtree_core::{
+        Cid, EncryptionMode, Store, decrypt_object, encrypt_object, nhash_decode, sha256,
+    };
+    use hashtree_lmdb::open_shared_lmdb_blob_store;
+
+    let root = TestRoot::new()?;
+    let plaintext = b"hello";
+    // chk_hello interop fixture shipped by hashtree-core 0.2.89.
+    let legacy_ciphertext = vec![
+        0xc6, 0x53, 0x08, 0xd9, 0xc8, 0x64, 0x9f, 0xf1, 0xc5, 0x98, 0x20, 0xd0, 0xb3, 0xa0, 0x30,
+        0xdb, 0x34, 0xad, 0x00, 0xf9, 0x2d,
+    ];
+    let objects = [
+        (legacy_ciphertext, sha256(plaintext).into()),
+        encrypt_object(plaintext, EncryptionMode::ChkV1)?,
+        encrypt_object(plaintext, EncryptionMode::RndV1)?,
+    ];
+    let mut references = Vec::new();
+    {
+        let store = open_shared_lmdb_blob_store(root.path(), 64 << 20)?;
+        for (ciphertext, key) in objects {
+            let hash = sha256(&ciphertext);
+            store.put(hash, ciphertext).await?;
+            references.push(nhash_for_cid(&Cid::encrypted(hash, key).to_string())?);
+        }
+    }
+    let store = open_shared_lmdb_blob_store(root.path(), 64 << 20)?;
+    for reference in references {
+        let cid = nhash_decode(&reference)?;
+        let ciphertext = store
+            .get(&cid.hash)
+            .await?
+            .context("missing stored object")?;
+        let key = cid.decrypt_key.context("missing product decryption key")?;
+        assert_eq!(decrypt_object(&ciphertext, &key)?, plaintext);
+    }
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires released htree plus Iris Drive and Chat product fixtures; run scripts/product-lab.sh"]
 async fn chat_and_drive_share_htree_without_losing_their_standalone_routes() {
