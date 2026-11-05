@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -83,6 +84,16 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertEqual(sum("--no-run" in command for command in calls), 1)
         installs = [command for command in calls if command[0] == "install"]
         self.assertEqual(len(installs), 3)
+        self.assertEqual([command[-1] for command in installs],
+                         ["hashtree-cli", "iris-drive-core", "iris-chat"])
+        # The first runtime gate runs exactly once after Drive is installed,
+        # before the unrelated Chat installation and its dependent gates.
+        self.assertEqual([(command[0], command[-1] if command[0] == "install"
+                           else command[command.index("--test") + 1])
+                          for command in calls[1:]],
+                         [("install", "hashtree-cli"), ("install", "iris-drive-core"),
+                          ("test", "drive_htree_product"), ("install", "iris-chat"),
+                          ("test", "chat_drive_htree_product"), ("test", "relayless_mesh_product")])
         self.assertIn("--locked", installs[0])
         self.assertEqual(installs[0][installs[0].index("--rev") + 1],
                          "458702aada89c0629df9456df38fef9c3f8f6a61")
@@ -93,7 +104,7 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertEqual(receipt["products"]["hashtree"]["rev"],
                          "458702aada89c0629df9456df38fef9c3f8f6a61")
         self.assertEqual(receipt["products"]["drive"]["rev"],
-                         "8966318dbaea896a2367580f40d15045995a6381")
+                         "f0d723d4626d63c3d92e80d412af7b9abf05d940")
         self.assertEqual(receipt["products"]["chat"]["rev"],
                          "061c1747575e216db4506d12f2d358dd8c8e0241")
         self.assertEqual(receipt["metrics"]["public_relays"], 0)
@@ -158,6 +169,44 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertFalse((self.root / "runtime-env.json").exists())
         for name in ["receipt.json", "product-inputs.json", "mesh-metrics.json"]:
             self.assertFalse((self.install / name).exists(), name)
+
+    def test_early_drive_failure_keeps_only_actual_inputs_and_skips_chat_install(self):
+        self.install.mkdir()
+        for name in ["receipt.json", "product-inputs.json", "mesh-metrics.json"]:
+            (self.install / name).write_text('{"status":"stale","products":{"chat":{}}}')
+        result = self.run_lab(TEST_FAIL="drive_htree_product")
+        self.assertEqual(result.returncode, 23, result.stderr)
+        calls = self.commands()
+        self.assertEqual(calls[0], PREFLIGHT)
+        self.assertEqual([command[-1] for command in calls if command[0] == "install"],
+                         ["hashtree-cli", "iris-drive-core"])
+        runtime = [command for command in calls if command[0] == "test" and "--no-run" not in command]
+        self.assertEqual(runtime, [["test", "--locked", "--test", "drive_htree_product",
+                                    "--", "--ignored", "--nocapture"]])
+        inputs = json.loads((self.install / "product-inputs.json").read_text())
+        self.assertEqual(inputs["status"], "prepared")
+        self.assertEqual(set(inputs["products"]), {"hashtree", "drive"})
+        for name, binary in [("hashtree", "htree"), ("drive", "iris-drive-stack-fixture")]:
+            self.assertEqual(inputs["products"][name]["sha256"],
+                             hashlib.sha256((self.install / "bin" / binary).read_bytes()).hexdigest())
+        self.assertEqual(inputs["products"]["drive"]["rev"],
+                         "f0d723d4626d63c3d92e80d412af7b9abf05d940")
+        self.assertFalse((self.install / "bin/iris-chat-stack-fixture").exists())
+        self.assertFalse((self.install / "receipt.json").exists())
+        self.assertFalse((self.install / "mesh-metrics.json").exists())
+
+    def test_failed_drive_install_never_records_an_uninstalled_product(self):
+        result = self.run_lab(TEST_FAIL="iris-drive-core")
+        self.assertEqual(result.returncode, 23, result.stderr)
+        inputs = json.loads((self.install / "product-inputs.json").read_text())
+        self.assertEqual(inputs["status"], "prepared")
+        self.assertEqual(set(inputs["products"]), {"hashtree"})
+        self.assertEqual(inputs["products"]["hashtree"]["sha256"],
+                         hashlib.sha256((self.install / "bin/htree").read_bytes()).hexdigest())
+        self.assertFalse(any(command[0] == "test" and "--no-run" not in command
+                             for command in self.commands()))
+        self.assertFalse((self.install / "receipt.json").exists())
+        self.assertFalse((self.install / "mesh-metrics.json").exists())
 
     def test_failed_gate_removes_stale_success_and_preserves_failure(self):
         self.install.mkdir()

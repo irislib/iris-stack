@@ -9,6 +9,8 @@ on:
       - scripts/product-lab.sh
       - scripts/product-lab.py
       - tests/test_product_lab.py
+      - scripts/setup-product-inputs.py
+      - tests/test_product_setup.py
       - src/bin/cashu-stack-fixture.rs
       - tests/cashu_payment_product.rs
       - tests/chat_drive_htree_product.rs
@@ -23,6 +25,8 @@ on:
       - scripts/product-lab.sh
       - scripts/product-lab.py
       - tests/test_product_lab.py
+      - scripts/setup-product-inputs.py
+      - tests/test_product_setup.py
       - src/bin/cashu-stack-fixture.rs
       - tests/cashu_payment_product.rs
       - tests/chat_drive_htree_product.rs
@@ -76,26 +80,53 @@ permissions:
 env:
   IRIS_STACK_LAB_REV: ${{ inputs.lab_rev || github.sha }}
 
+defaults:
+  run:
+    working-directory: iris-stack
+
 jobs:
   cashu-service-payment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: irislib/iris-stack
           ref: ${{ env.IRIS_STACK_LAB_REV }}
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install Rust build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes libdbus-1-dev pkg-config protobuf-compiler
+          path: iris-stack
+      - name: Checkout reviewed build input helpers
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: irislib/iris-chat-rs
+          ref: 061c1747575e216db4506d12f2d358dd8c8e0241
+          persist-credentials: false
+          path: iris-build-inputs
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/release-build-inputs.py
+            /scripts/release-build-inputs.json
+            /linux/scripts/pinned-apt.sh
+            /linux/build-inputs/apt-snapshots.tsv
+      - name: Check pinned setup contracts
+        run: python3 -B -m unittest discover -s tests -p test_product_setup.py -v
+      - name: Install verified product build inputs
+        run: python3 scripts/setup-product-inputs.py --inputs "$GITHUB_WORKSPACE/iris-build-inputs" --work "$RUNNER_TEMP/iris-product-inputs"
+      - name: Retain product build input receipts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: iris-stack-build-inputs-${{ github.job }}
+          path: |
+            ${{ runner.temp }}/iris-product-inputs/setup.json
+            ${{ runner.temp }}/iris-product-inputs/rust/receipt.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Run real Cashu failure and recovery gate
         run: cargo test --locked --test cashu_payment_product -- --nocapture
 
   chat-drive-hashtree:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       IRIS_STACK_RELEASE_GATE: '1'
@@ -104,32 +135,55 @@ jobs:
       IRIS_STACK_HTREE_REV: ${{ inputs.htree_rev }}
       IRIS_STACK_CHAT_REV: ${{ inputs.chat_rev }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: irislib/iris-stack
           ref: ${{ env.IRIS_STACK_LAB_REV }}
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install Rust build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes libdbus-1-dev pkg-config protobuf-compiler
+          path: iris-stack
+      - name: Checkout reviewed build input helpers
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: irislib/iris-chat-rs
+          ref: 061c1747575e216db4506d12f2d358dd8c8e0241
+          persist-credentials: false
+          path: iris-build-inputs
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/release-build-inputs.py
+            /scripts/release-build-inputs.json
+            /linux/scripts/pinned-apt.sh
+            /linux/build-inputs/apt-snapshots.tsv
+      - name: Check pinned setup contracts
+        run: python3 -B -m unittest discover -s tests -p test_product_setup.py -v
+      - name: Install verified product build inputs
+        run: python3 scripts/setup-product-inputs.py --inputs "$GITHUB_WORKSPACE/iris-build-inputs" --work "$RUNNER_TEMP/iris-product-inputs"
+      - name: Retain product build input receipts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: iris-stack-build-inputs-${{ github.job }}
+          path: |
+            ${{ runner.temp }}/iris-product-inputs/setup.json
+            ${{ runner.temp }}/iris-product-inputs/rust/receipt.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Run released product process gate
         run: scripts/product-lab.sh
       - name: Retain exact product provenance and resource measurements
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: iris-stack-product-gate
-          path: target/product-lab/receipt.json
+          path: iris-stack/target/product-lab/receipt.json
           if-no-files-found: error
           retention-days: 14
       - name: Retain actual product inputs and any mesh failure measurements
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: iris-stack-product-diagnostics
           path: |
-            target/product-lab/product-inputs.json
-            target/product-lab/mesh-metrics.json
+            iris-stack/target/product-lab/product-inputs.json
+            iris-stack/target/product-lab/mesh-metrics.json
           if-no-files-found: ignore
           retention-days: 14

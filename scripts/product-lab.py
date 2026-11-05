@@ -18,7 +18,7 @@ PUBLIC_SOURCES = {
 }
 PRODUCTS = [
     ("hashtree", "HTREE", "hashtree-cli", "fips-webrtc,git-remote-wrapper", ["htree", "git-remote-htree"], ""),
-    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "8966318dbaea896a2367580f40d15045995a6381"),
+    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "f0d723d4626d63c3d92e80d412af7b9abf05d940"),
     ("chat", "CHAT", "iris-chat", "stack-fixture", ["iris-chat-stack-fixture"], "061c1747575e216db4506d12f2d358dd8c8e0241"),
 ]
 
@@ -76,18 +76,20 @@ def main():
                     "--no-run"], cwd=ROOT, check=True, env=env)
     env["PATH"] = str(install / "bin") + os.pathsep + env["PATH"]
     products = {}
-    for name, package, features, binaries, binary_key, binary, provenance in plans:
+    provenance = {"schema_version": 1, "lab_revision": lab_revision,
+                  "lab_worktree_clean": not dirty, "release_gate": release, "products": products}
+    for name, package, features, binaries, binary_key, binary, product_provenance in plans:
         if not binary:
-            if provenance["source"].startswith("htree://") and not (install / "bin/git-remote-htree").is_file():
+            if product_provenance["source"].startswith("htree://") and not (install / "bin/git-remote-htree").is_file():
                 subprocess.run(["cargo", "install", "--locked", "--root", str(install), "--version", "=0.3.0", "--bin", "git-remote-htree", "git-remote-htree"], check=True, env=env)
             command = ["cargo", "install", "--locked", "--root", str(install)]
-            command += (["--version", "=" + provenance["version"]] if "version" in provenance else ["--git", provenance["source"], "--rev", provenance["rev"]])
+            command += (["--version", "=" + product_provenance["version"]] if "version" in product_provenance else ["--git", product_provenance["source"], "--rev", product_provenance["rev"]])
             command += ["--features", features]
             for item in binaries:
                 command += ["--bin", item]
             command.append(package)
             install_env = {**env, "CARGO_NET_GIT_FETCH_WITH_CLI": "true"}
-            if provenance["source"].startswith("htree://"):
+            if product_provenance["source"].startswith("htree://"):
                 # Locate the public source announcement without changing product runtime relays.
                 install_env["NOSTR_RELAYS"] = "wss://relay.damus.io,wss://relay.primal.net"
             subprocess.run(command, check=True, env=install_env)
@@ -98,14 +100,18 @@ def main():
         with open(binary, "rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(chunk)
-        products[name] = {**provenance, "sha256": digest.hexdigest()}
+        products[name] = {**product_provenance, "sha256": digest.hexdigest()}
 
-    provenance = {"schema_version": 1, "lab_revision": lab_revision,
-                  "lab_worktree_clean": not dirty, "release_gate": release, "products": products}
-    # Keep the exact installed bytes on a failed runtime gate without creating a
-    # success receipt. This uses the same provenance fields as the final receipt.
-    inputs_path.write_text(json.dumps({**provenance, "status": "prepared"}, indent=2) + "\n")
-    for gate in ["drive_htree_product", "chat_drive_htree_product", "relayless_mesh_product"]:
+        # Record only binaries already installed and hashed, including on early
+        # failure. A prepared input record is never a successful gate receipt.
+        inputs_path.write_text(json.dumps({**provenance, "status": "prepared"}, indent=2) + "\n")
+        if name == "drive":
+            # This gate needs only HTree and Drive. Fail before installing Chat,
+            # then continue the remaining gates without repeating this one.
+            subprocess.run(["cargo", "test", "--locked", "--test", "drive_htree_product",
+                            "--", "--ignored", "--nocapture"], cwd=ROOT, check=True, env=env)
+
+    for gate in ["chat_drive_htree_product", "relayless_mesh_product"]:
         subprocess.run(["cargo", "test", "--locked", "--test", gate, "--", "--ignored", "--nocapture"], cwd=ROOT, check=True, env=env)
     metrics = json.loads(metrics_path.read_text())
     require(isinstance(metrics, dict) and isinstance(metrics.get("idle"), list)
