@@ -49,7 +49,7 @@ if args[0] == "test":
 if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
     pathlib.Path(os.environ["IRIS_STACK_MESH_METRICS_PATH"]).write_text(
         os.environ.get("TEST_BAD_METRICS") or json.dumps({
-            "public_relays": 0, "idle": [{"cpu_percent": [0.5, 0.5, 0.5]}] * 2}))
+            "public_relays": 0, "idle": [{"cpu_percent": [0.5, 0.5, 0.5, 0.5]}] * 2}))
 ''')
 
     def executable(self, name, source):
@@ -70,11 +70,18 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         result = self.run_lab()
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.commands()
-        self.assertIn("=0.3.0", calls[0])
+        self.assertIn("--locked", calls[0])
+        self.assertEqual(calls[0][calls[0].index("--rev") + 1],
+                         "a0f748953c73187ec0d47354ebdaa6669943cbce")
         self.assertEqual([c[c.index("--test") + 1] for c in calls if c[0] == "test"],
                          ["drive_htree_product", "chat_drive_htree_product", "relayless_mesh_product"])
         receipt = json.loads((self.install / "receipt.json").read_text())
-        self.assertEqual(receipt["products"]["hashtree"]["version"], "0.3.0")
+        self.assertEqual(receipt["products"]["hashtree"]["rev"],
+                         "a0f748953c73187ec0d47354ebdaa6669943cbce")
+        self.assertEqual(receipt["products"]["drive"]["rev"],
+                         "967bd011b84643bf5d9d394fca70b0b5c6bcfce9")
+        self.assertEqual(receipt["products"]["chat"]["rev"],
+                         "50f34d618cb50edf70896fd4c1acb279342d07cf")
         self.assertEqual(receipt["metrics"]["public_relays"], 0)
         self.assertEqual(len(receipt["products"]["chat"]["sha256"]), 64)
 

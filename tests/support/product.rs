@@ -43,6 +43,16 @@ impl HtreeNode {
     }
 
     pub fn write_config(&self, config: NodeConfig<'_>) -> Result<()> {
+        self.write_config_with_fresh_clients(config, 0)
+    }
+
+    pub fn write_config_with_fresh_clients(
+        &self,
+        config: NodeConfig<'_>,
+        fresh_clients: usize,
+    ) -> Result<()> {
+        // Zero preserves configured-only admission. The open capacity counts
+        // only unconfigured clients; configured roles do not consume it.
         fs::create_dir_all(&self.config_dir)?;
         fs::create_dir_all(&self.data_dir)?;
         let peers = config
@@ -69,6 +79,7 @@ fips_discovery_scope = "fips-overlay-v1"
 fips_relays = []
 fips_websocket_seed_urls = []
 fips_peers = [{}]
+fips_open_discovery_max_pending = {}
 enable_fips_udp = true
 fips_udp_bind_addr = "{}"
 fips_udp_public = false
@@ -98,6 +109,7 @@ auto_check = false
             toml_path(&self.data_dir),
             config.http_addr,
             peers,
+            fresh_clients,
             config.udp_addr,
             config.rendezvous_addr,
         );
@@ -191,20 +203,15 @@ pub async fn add_blob(
         .context("node data parent")?
         .join(name);
     fs::write(&path, bytes).context("write blob fixture")?;
-    let output = node
-        .command(htree_bin)
-        .arg("add")
-        .arg(&path)
-        .arg("--unencrypted")
-        .output()
+    let mut command = node.command(htree_bin);
+    command.arg("add").arg(&path).arg("--unencrypted");
+    // Use the existing bounded collector and child cancellation for this CLI too.
+    let output = ManagedProcess::spawn("htree add", &mut command)?
+        .finish()
         .await
         .context("run htree add")?;
-    ensure!(
-        output.status.success(),
-        "htree add failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout)?
+    output
+        .stdout
         .lines()
         .find_map(|line| line.trim().strip_prefix("hash:  ").map(str::to_string))
         .context("htree add did not print a hash")

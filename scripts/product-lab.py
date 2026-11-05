@@ -18,8 +18,8 @@ PUBLIC_SOURCES = {
 }
 PRODUCTS = [
     ("hashtree", "HTREE", "hashtree-cli", "fips-webrtc,git-remote-wrapper", ["htree", "git-remote-htree"], ""),
-    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "05751a828f2a20b3ed46d09569e6cf35ac4c537d"),
-    ("chat", "CHAT", "iris-chat", "stack-fixture", ["iris-chat-stack-fixture"], "a4cafb1bb382593c9886d0a4314cf80292ef7850"),
+    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "967bd011b84643bf5d9d394fca70b0b5c6bcfce9"),
+    ("chat", "CHAT", "iris-chat", "stack-fixture", ["iris-chat-stack-fixture"], "50f34d618cb50edf70896fd4c1acb279342d07cf"),
 ]
 
 
@@ -50,8 +50,8 @@ def main():
         rev = env.get(prefix + "_REV") or default_rev
         version = env.get("IRIS_STACK_HTREE_VERSION", "") if name == "hashtree" else ""
         require(not (version and rev), "Select htree_rev or htree_version, not both")
-        if not rev and name == "hashtree":
-            version = version or "0.3.0"
+        if not rev and not version and name == "hashtree":
+            rev = "a0f748953c73187ec0d47354ebdaa6669943cbce"
         require(not rev or re.fullmatch(r"[0-9a-f]{40}", rev), f"{prefix}_REV must be an exact 40-character commit")
         require(not version or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?", version), "htree_version must be one exact version")
         if release:
@@ -99,7 +99,7 @@ def main():
     require(isinstance(metrics, dict) and isinstance(metrics.get("idle"), list)
             and len(metrics["idle"]) == 2
             and all(isinstance(sample, dict) and isinstance(sample.get("cpu_percent"), list)
-                    and len(sample["cpu_percent"]) == 3 for sample in metrics["idle"]),
+                    and len(sample["cpu_percent"]) == 4 for sample in metrics["idle"]),
             "Malformed mesh resource measurements")
     receipt = {"schema_version": 1, "status": "passed", "lab_revision": lab_revision, "lab_worktree_clean": not dirty,
                "release_gate": release, "products": products, "metrics": metrics}
