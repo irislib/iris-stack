@@ -279,7 +279,20 @@ async fn run_mesh() -> Result<()> {
     )
     .await;
 
+    let rejoin_clock = Instant::now();
+    let mut rejoin = json!({
+        "clock": "monotonic_ms_since_kill_start", "overall_budget_ms": 60_000,
+        "kill_started_ms": 0, "kill_completed_ms": null,
+        "spawn_started_ms": null, "spawn_completed_ms": null,
+        "startup_marker_ms": null, "fresh_links_ready_ms": null,
+        "chat_mesh_ready_ms": null, "drive_mesh_ready_ms": null,
+        "drive_receive_started_ms": null, "drive_received_ms": null,
+        "chat_receive_started_ms": null, "chat_received_ms": null,
+        "phase_finished_ms": null, "fresh_replacement_status": null,
+        "status": "incomplete",
+    });
     let stopped = transit_process.kill().await?;
+    rejoin["kill_completed_ms"] = json!(rejoin_clock.elapsed().as_millis());
     ensure!(
         !stopped.status.success(),
         "transit was not forcibly stopped"
@@ -291,14 +304,95 @@ async fn run_mesh() -> Result<()> {
 
     // Both endpoints keep their original subscription and publish each event
     // exactly once. Only the transport process is replaced.
+    eprintln!(
+        "relayless queued fixture events: Chat A -> Drive C {}; Drive C -> Chat A {}",
+        queued_chat["id"], queued_drive["id"]
+    );
     let recovered = Instant::now();
-    let mut replacement = spawn_htree(&htree_bin, &transit, &transit_http, "replacement B")?;
-    replacement.line_containing("FIPS: enabled").await?;
-    wait_for_mesh(&mut chat, &transit_npub).await?;
-    wait_for_mesh(&mut drive, &transit_npub).await?;
-    receive(&mut drive, &queued_chat).await?;
-    receive(&mut chat, &queued_drive).await?;
-    let recovery_ms = recovered.elapsed().as_millis();
+    rejoin["spawn_started_ms"] = json!(rejoin_clock.elapsed().as_millis());
+    let rejoin_deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    let mut replacement = spawn_htree(&htree_bin, &transit, &transit_http, "replacement B")
+        .context("rejoin: spawn replacement transit B")?;
+    rejoin["spawn_completed_ms"] = json!(rejoin_clock.elapsed().as_millis());
+    let recovery_result: Result<u128> = tokio::time::timeout_at(rejoin_deadline, async {
+        rejoin["operation"] = json!("replacement B startup marker");
+        replacement
+            .line_containing("FIPS: enabled")
+            .await
+            .context("rejoin: replacement B startup marker")?;
+        rejoin["startup_marker_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        // New B starts with empty authenticated peer state. Its endpoint peer
+        // snapshot proves new authenticated links; surviving clients can still
+        // carry stale adjacency bits after the old B process was killed.
+        rejoin["operation"] = json!("replacement B authenticates all three roles");
+        tokio::try_join!(
+            async {
+                product::wait_for_fips_peer_connection(&transit_http, chat_npub)
+                    .await.context("rejoin: new B authenticate Chat A over UDP")
+            },
+            async {
+                product::wait_for_fips_peer_connection(&transit_http, &drive_identity.npub)
+                    .await.context("rejoin: new B authenticate Drive C over UDP")
+            },
+            async {
+                product::wait_for_fips_peer_connection(&transit_http, &provider_npub)
+                    .await.context("rejoin: new B authenticate public provider P over UDP")
+            },
+        )?;
+        let fresh_status = product::fetch_status(&transit_http)
+            .await.context("rejoin: capture new B authenticated status")?;
+        rejoin["fresh_replacement_status"] = fresh_status;
+        require_fresh_replacement_roles(&rejoin["fresh_replacement_status"], &roles)?;
+        rejoin["fresh_links_ready_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        rejoin["operation"] = json!("Chat A mesh readiness");
+        wait_for_mesh(&mut chat, &transit_npub)
+            .await
+            .context("rejoin: Chat A wait_for_mesh through replacement B")?;
+        rejoin["chat_mesh_ready_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        rejoin["operation"] = json!("Drive C mesh readiness");
+        wait_for_mesh(&mut drive, &transit_npub)
+            .await
+            .context("rejoin: Drive C wait_for_mesh through replacement B")?;
+        rejoin["drive_mesh_ready_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        rejoin["operation"] = json!("Drive C receives queued Chat A event");
+        rejoin["drive_receive_started_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        receive(&mut drive, &queued_chat)
+            .await
+            .context("rejoin: Drive C receive queued Chat A event")?;
+        rejoin["drive_received_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        rejoin["operation"] = json!("Chat A receives queued Drive C event");
+        rejoin["chat_receive_started_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        receive(&mut chat, &queued_drive)
+            .await
+            .context("rejoin: Chat A receive queued Drive C event")?;
+        rejoin["chat_received_ms"] = json!(rejoin_clock.elapsed().as_millis());
+        Ok::<_, anyhow::Error>(recovered.elapsed().as_millis())
+    })
+    .await
+    .context("rejoin: overall 60-second startup/authentication/readiness/delivery budget")
+    .and_then(|result| result);
+    rejoin["phase_finished_ms"] = json!(rejoin_clock.elapsed().as_millis());
+    rejoin["status"] = json!(if recovery_result.is_ok() { "event_phase_complete" } else { "failed" });
+    rejoin["error"] = json!(recovery_result.as_ref().err().map(|error| format!("{error:#}")));
+    rejoin["event_ids"] = json!({"chat_to_drive": queued_chat["id"], "drive_to_chat": queued_drive["id"]});
+    // Keep timings and the actual new-process status even if delivery fails.
+    // Full functional recovery is still gated by the remaining blob/idle checks.
+    write_mesh_metrics(&json!({
+        "status": "incomplete", "functional_recovery_complete": false,
+        "wire_budget_passed": idle_wire_budget(&before_partition).is_ok(),
+        "idle": [&before_partition], "rejoin": &rejoin,
+    }))?;
+    let recovery_ms = with_mesh_diagnostics(
+        recovery_result,
+        &mut chat,
+        [
+            ("Drive", &mut drive),
+            ("replacement transit", &mut replacement),
+            ("provider", &mut provider_process),
+        ],
+        [("replacement transit", &transit_http), ("provider", &provider_http)],
+    )
+    .await?;
     product::wait_for_htree_fips_peer(&provider_http, &transit_npub).await?;
     assert_provider_transit(&provider_http, &transit_npub).await?;
     let recovered_blob_ms_result = fetch_blob(&mut chat, &queued_blob).await;
@@ -353,7 +447,7 @@ async fn run_mesh() -> Result<()> {
         "latency_ms": {"initial_events": initial_event_ms, "initial_blob": initial_blob_ms,
             "rejoin_events": recovery_ms, "rejoined_blob": recovered_blob_ms,
             "private_probe": private_probe_ms, "post_probe_blob": post_probe_blob_ms},
-        "idle": [&before_partition, &after_recovery],
+        "idle": [&before_partition, &after_recovery], "rejoin": &rejoin,
     }))?;
 
     for process in [&mut chat, &mut drive] {
@@ -371,6 +465,40 @@ async fn run_mesh() -> Result<()> {
         "relayless product mesh: signed events 4/4, verified public blobs 3/3, private Drive blob disclosed=0, direct roles A/B/C/P plus anonymous reader, public relays=0; initial events {initial_event_ms}ms, initial blob {initial_blob_ms}ms, rejoin events {recovery_ms}ms, rejoined blob {recovered_blob_ms}ms"
     );
     wire_result
+}
+
+fn require_fresh_replacement_roles(status: &Value, roles: &[&str; 3]) -> Result<()> {
+    for (label, identity) in ["Chat A", "Drive C", "public provider P"].into_iter().zip(roles) {
+        ensure!(
+            product::fips_udp_peer_connected(status, identity),
+            "rejoin: new B status did not retain authenticated UDP role {label}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn replacement_readiness_requires_every_authenticated_udp_role() {
+    let roles = ["chat-device", "drive-device", "public-provider"];
+    let peers = roles.map(|identity| json!({
+        "npub": identity, "connected": true, "transport_type": "udp"
+    }));
+    let status = json!({"fips": {"peer_statuses": peers}});
+    assert!(require_fresh_replacement_roles(&status, &roles).is_ok());
+    for index in 0..3 {
+        for (field, value) in [
+            ("connected", json!(false)),
+            ("transport_type", json!("websocket")),
+            ("npub", json!("unrelated")),
+        ] {
+            let mut invalid = status.clone();
+            invalid["fips"]["peer_statuses"][index][field] = value;
+            assert!(require_fresh_replacement_roles(&invalid, &roles).is_err());
+        }
+        let mut missing = status.clone();
+        missing["fips"]["peer_statuses"].as_array_mut().unwrap().remove(index);
+        assert!(require_fresh_replacement_roles(&missing, &roles).is_err());
+    }
 }
 
 fn write_mesh_metrics(metrics: &Value) -> Result<()> {
