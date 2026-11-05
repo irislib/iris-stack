@@ -126,7 +126,8 @@ auto_check = false
                 "RUST_LOG",
                 format!(
                     "{requested_log},fips_core::discovery::lan=info,\
-                     fips_core::node::lifecycle::runtime=info"
+                     fips_core::node::lifecycle::runtime=info,\
+                     fips_core::node::handlers::mmp=debug"
                 ),
             )
             .arg("--data-dir")

@@ -33,9 +33,11 @@ def main():
     install = Path(env.get("IRIS_STACK_PRODUCT_INSTALL_ROOT", ROOT / "target/product-lab")).resolve()
     install.mkdir(parents=True, exist_ok=True)
     receipt_path, metrics_path = install / "receipt.json", install / "mesh-metrics.json"
+    inputs_path = install / "product-inputs.json"
     # A previous success must never survive a failed invocation at this location.
     receipt_path.unlink(missing_ok=True)
     metrics_path.unlink(missing_ok=True)
+    inputs_path.unlink(missing_ok=True)
     env["IRIS_STACK_MESH_METRICS_PATH"] = str(metrics_path)
     release = env.get("IRIS_STACK_RELEASE_GATE") == "1"
     if release:
@@ -93,6 +95,11 @@ def main():
                 digest.update(chunk)
         products[name] = {**provenance, "sha256": digest.hexdigest()}
 
+    provenance = {"schema_version": 1, "lab_revision": lab_revision,
+                  "lab_worktree_clean": not dirty, "release_gate": release, "products": products}
+    # Keep the exact installed bytes on a failed runtime gate without creating a
+    # success receipt. This uses the same provenance fields as the final receipt.
+    inputs_path.write_text(json.dumps({**provenance, "status": "prepared"}, indent=2) + "\n")
     for gate in ["drive_htree_product", "chat_drive_htree_product", "relayless_mesh_product"]:
         subprocess.run(["cargo", "test", "--locked", "--test", gate, "--", "--ignored", "--nocapture"], cwd=ROOT, check=True, env=env)
     metrics = json.loads(metrics_path.read_text())
@@ -101,8 +108,10 @@ def main():
             and all(isinstance(sample, dict) and isinstance(sample.get("cpu_percent"), list)
                     and len(sample["cpu_percent"]) == 4 for sample in metrics["idle"]),
             "Malformed mesh resource measurements")
-    receipt = {"schema_version": 1, "status": "passed", "lab_revision": lab_revision, "lab_worktree_clean": not dirty,
-               "release_gate": release, "products": products, "metrics": metrics}
+    require(metrics.get("functional_recovery_complete") is True
+            and metrics.get("wire_budget_passed") is True,
+            "Incomplete or failed mesh measurements")
+    receipt = {**provenance, "status": "passed", "metrics": metrics}
     temporary = receipt_path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(receipt, indent=2) + "\n")
     temporary.replace(receipt_path)

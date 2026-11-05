@@ -123,3 +123,13 @@ jobs:
           path: target/product-lab/receipt.json
           if-no-files-found: error
           retention-days: 14
+      - name: Retain actual product inputs and any mesh failure measurements
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iris-stack-product-diagnostics
+          path: |
+            target/product-lab/product-inputs.json
+            target/product-lab/mesh-metrics.json
+          if-no-files-found: ignore
+          retention-days: 14

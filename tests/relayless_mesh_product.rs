@@ -259,6 +259,26 @@ async fn run_mesh() -> Result<()> {
     )
     .await?;
 
+    // Persist real partial evidence even if the subsequent recovery check fails.
+    write_mesh_metrics(&json!({
+        "status": "incomplete", "functional_recovery_complete": false,
+        "wire_budget_passed": idle_wire_budget(&before_partition).is_ok(),
+        "idle": [&before_partition],
+    }))?;
+    // Capture the failing phase while its processes are alive, but defer the
+    // wire-budget error until bounded recovery and final evidence are complete.
+    let _ = with_mesh_diagnostics(
+        idle_wire_budget(&before_partition),
+        &mut chat,
+        [
+            ("Drive", &mut drive),
+            ("transit", &mut transit_process),
+            ("provider", &mut provider_process),
+        ],
+        [("transit", &transit_http), ("provider", &provider_http)],
+    )
+    .await;
+
     let stopped = transit_process.kill().await?;
     ensure!(
         !stopped.status.success(),
@@ -306,6 +326,36 @@ async fn run_mesh() -> Result<()> {
     )
     .await?;
 
+    let _ = with_mesh_diagnostics(
+        idle_wire_budget(&after_recovery),
+        &mut chat,
+        [
+            ("Drive", &mut drive),
+            ("transit", &mut replacement),
+            ("provider", &mut provider_process),
+        ],
+        [("transit", &transit_http), ("provider", &provider_http)],
+    )
+    .await;
+    let wire_result = idle_wire_budget(&before_partition).and(idle_wire_budget(&after_recovery));
+    // Both functional phases completed. Cleanup still has to succeed before a
+    // successful test can be reported; this file is diagnostic evidence only.
+    write_mesh_metrics(&json!({
+        "status": if wire_result.is_ok() { "measured" } else { "failed" },
+        "functional_recovery_complete": true,
+        "wire_budget_passed": wire_result.is_ok(),
+        "signed_events": 4, "verified_blobs": 3,
+        "private_blob_probe": {"disclosed": false, "explicit_acl_reply_observed": false},
+        "anonymous_reader_adjacency": true,
+        "provider_get_source_observed": false,
+        "public_relays": 0, "direct_peers": [1, 4, 1, 1],
+        "process_roles": ["chat", "transit", "drive", "public_provider"],
+        "latency_ms": {"initial_events": initial_event_ms, "initial_blob": initial_blob_ms,
+            "rejoin_events": recovery_ms, "rejoined_blob": recovered_blob_ms,
+            "private_probe": private_probe_ms, "post_probe_blob": post_probe_blob_ms},
+        "idle": [&before_partition, &after_recovery],
+    }))?;
+
     for process in [&mut chat, &mut drive] {
         process.send_line("stop").await?;
         process.json_event("stopped").await?;
@@ -320,24 +370,41 @@ async fn run_mesh() -> Result<()> {
     eprintln!(
         "relayless product mesh: signed events 4/4, verified public blobs 3/3, private Drive blob disclosed=0, direct roles A/B/C/P plus anonymous reader, public relays=0; initial events {initial_event_ms}ms, initial blob {initial_blob_ms}ms, rejoin events {recovery_ms}ms, rejoined blob {recovered_blob_ms}ms"
     );
+    wire_result
+}
+
+fn write_mesh_metrics(metrics: &Value) -> Result<()> {
     if let Some(path) = std::env::var_os("IRIS_STACK_MESH_METRICS_PATH") {
-        fs::write(
-            path,
-            serde_json::to_vec_pretty(&json!({
-                "signed_events": 4, "verified_blobs": 3,
-                "private_blob_probe": {"disclosed": false, "explicit_acl_reply_observed": false},
-                "anonymous_reader_adjacency": true,
-                "provider_get_source_observed": false,
-                "public_relays": 0, "direct_peers": [1, 4, 1, 1],
-                "process_roles": ["chat", "transit", "drive", "public_provider"],
-                "latency_ms": {"initial_events": initial_event_ms, "initial_blob": initial_blob_ms,
-                    "rejoin_events": recovery_ms, "rejoined_blob": recovered_blob_ms,
-                    "private_probe": private_probe_ms, "post_probe_blob": post_probe_blob_ms},
-                "idle": [before_partition, after_recovery],
-            }))?,
-        )?;
+        fs::write(path, serde_json::to_vec_pretty(metrics)?)?;
     }
     Ok(())
+}
+
+fn check_wire_budget(bytes_per_second: f64) -> Result<()> {
+    ensure!(
+        bytes_per_second.is_finite() && bytes_per_second >= 0.0 && bytes_per_second < 4096.0,
+        "idle transit exceeded 4 KiB/s or had an invalid rate: {bytes_per_second:.1} B/s"
+    );
+    Ok(())
+}
+
+fn idle_wire_budget(sample: &Value) -> Result<()> {
+    check_wire_budget(
+        sample["combined_bytes_per_second"]
+            .as_f64()
+            .context("idle sample omitted its traffic rate")?,
+    )
+    .with_context(|| format!("idle phase {}", sample["phase"]))
+}
+
+#[test]
+fn wire_budget_keeps_its_strict_boundary() {
+    for accepted in [0.0, 4095.999] {
+        assert!(check_wire_budget(accepted).is_ok());
+    }
+    for rejected in [4096.0, 5438.9, -1.0, f64::INFINITY, f64::NAN] {
+        assert!(check_wire_budget(rejected).is_err());
+    }
 }
 
 async fn status(process: &mut ManagedProcess) -> Result<Value> {
@@ -389,12 +456,7 @@ async fn idle_resources(
         )
         .with_context(|| format!("idle process {}", ["A", "B", "C", "P"][index]))?;
     }
-    let mut traffic = [0; 4];
-    for index in 0..traffic.len() {
-        traffic[index] = after_traffic[index]
-            .checked_sub(before_traffic[index])
-            .context("transit traffic counter reset")?;
-    }
+    let (traffic, per_role) = traffic_delta(&before_traffic, &after_traffic)?;
     let [sent, received, sent_packets, received_packets] = traffic;
     let bytes_per_second = (sent + received) as f64 / elapsed;
     eprintln!(
@@ -404,18 +466,19 @@ async fn idle_resources(
         cpu_label(cpu_percent[2]),
         cpu_label(cpu_percent[3])
     );
-    // This generous wire budget tolerates keepalives and route maintenance,
-    // while catching a continuing payload/retry storm after completed work.
-    ensure!(
-        bytes_per_second < 4096.0,
-        "idle transit exceeded 4 KiB/s: {bytes_per_second:.1} B/s"
-    );
+    eprintln!("relayless idle {phase} per-role transit deltas: {per_role}");
+    // Keep the same strict budget. The caller reports failure only after
+    // recovery evidence and process cleanup, without classifying this traffic.
+    let wire_budget_passed = check_wire_budget(bytes_per_second).is_ok();
     Ok(
         json!({"phase": phase, "seconds": elapsed, "cpu_percent": cpu_percent,
         "cpu_budget_percent": cpu_budget, "cpu_required": cpu_required,
         "sent_bytes": sent, "received_bytes": received,
         "sent_packets": sent_packets, "received_packets": received_packets,
-        "combined_bytes_per_second": bytes_per_second, "wire_budget_bytes_per_second": 4096}),
+        "combined_bytes_per_second": bytes_per_second, "wire_budget_bytes_per_second": 4096,
+        "wire_budget_passed": wire_budget_passed, "per_role": per_role,
+        "peer_boundaries": {"before": before_traffic.peer_statuses,
+                            "after": after_traffic.peer_statuses}}),
     )
 }
 
@@ -473,28 +536,175 @@ fn cpu_label(value: Option<f64>) -> String {
     value.map_or_else(|| "unavailable".to_string(), |value| format!("{value:.2}"))
 }
 
+#[derive(Clone)]
+struct TrafficSnapshot {
+    total: [u64; 4],
+    roles: [(String, [u64; 4]); 4],
+    peer_statuses: Vec<Value>,
+}
+
+const TRAFFIC_ROLES: [&str; 4] = ["chat", "drive", "public_provider", "anonymous_reader"];
+
 async fn transit_traffic(
     address: &str,
     roles: &[&str; 3],
     chat_owner: &str,
     reader: &str,
-) -> Result<[u64; 4]> {
-    let status = product::fetch_status(address).await?;
-    validate_transit_links(&status, roles, chat_owner, Some(reader))?;
+) -> Result<TrafficSnapshot> {
+    traffic_snapshot(&product::fetch_status(address).await?, roles, chat_owner, reader)
+}
+
+fn peer_counters(peer: &Value) -> Result<[u64; 4]> {
+    let mut counters = [0; 4];
+    for (index, name) in ["bytes_sent", "bytes_recv", "packets_sent", "packets_recv"]
+        .into_iter()
+        .enumerate()
+    {
+        counters[index] = peer[name]
+            .as_u64()
+            .with_context(|| format!("missing {name}"))?;
+    }
+    Ok(counters)
+}
+
+fn traffic_snapshot(
+    status: &Value,
+    roles: &[&str; 3],
+    chat_owner: &str,
+    reader: &str,
+) -> Result<TrafficSnapshot> {
+    validate_transit_links(status, roles, chat_owner, Some(reader))?;
     let peers = status["fips"]["peer_statuses"]
         .as_array()
         .context("transit omitted FIPS peer counters")?;
-    peers.iter().try_fold([0; 4], |mut total, peer| {
-        for (index, name) in ["bytes_sent", "bytes_recv", "packets_sent", "packets_recv"]
-            .into_iter()
-            .enumerate()
-        {
-            total[index] += peer[name]
-                .as_u64()
-                .with_context(|| format!("missing {name}"))?;
+    let mut snapshot = TrafficSnapshot {
+        total: [0; 4],
+        roles: std::array::from_fn(|_| (String::new(), [0; 4])),
+        peer_statuses: peers.iter().map(peer_boundary).collect(),
+    };
+    // Preserve the previous aggregate over all peer counters, including retained
+    // disconnected entries. Role detail must not reduce the measured total.
+    for peer in peers {
+        for (index, count) in peer_counters(peer)?.into_iter().enumerate() {
+            snapshot.total[index] = snapshot.total[index]
+                .checked_add(count)
+                .context("transit traffic counter overflow")?;
         }
-        Ok(total)
+    }
+    for (index, identity) in [roles[0], roles[1], roles[2], reader].into_iter().enumerate() {
+        let peer = peers.iter()
+            .find(|peer| peer["connected"] == true && peer["npub"] == identity)
+            .context("traffic role disappeared")?;
+        snapshot.roles[index] = (identity.to_string(), peer_counters(peer)?);
+    }
+    Ok(snapshot)
+}
+
+fn peer_boundary(peer: &Value) -> Value {
+    // The pinned Htree API currently exposes only identity/connection/transport
+    // and byte/packet counters. Preserve its complete record; absent optional
+    // link/RTT/rekey/probe observations must not look like measured zeroes.
+    let missing = ["link_id", "srtt_ms", "srtt_age_ms", "rekey", "direct_probe"]
+        .into_iter()
+        .filter(|field| peer.get(*field).is_none())
+        .collect::<Vec<_>>();
+    json!({
+        "key": {"npub": peer["npub"], "link_id": peer.get("link_id"),
+                "connected": peer["connected"]},
+        "status": peer,
+        "missing_optional_fields": missing,
     })
+}
+
+#[test]
+fn peer_boundaries_preserve_actual_fields_and_mark_missing_observations() {
+    let peer = json!({"npub": "anonymous-reader", "connected": true,
+        "transport_type": "udp", "transport_addr": "127.0.0.1:1234",
+        "bytes_sent": 100, "bytes_recv": 200, "packets_sent": 3, "packets_recv": 4});
+    let boundary = peer_boundary(&peer);
+    assert_eq!(boundary["status"], peer);
+    assert_eq!(boundary["key"], json!({"npub": "anonymous-reader", "link_id": null, "connected": true}));
+    assert_eq!(boundary["missing_optional_fields"], json!(["link_id", "srtt_ms", "srtt_age_ms", "rekey", "direct_probe"]));
+    // Future API fields, including an explicit null, are retained without
+    // inventing a value or incorrectly labelling a present field as absent.
+    let mut extended = peer.clone();
+    extended["link_id"] = json!("observed-link");
+    extended["srtt_ms"] = Value::Null;
+    extended["other_counter"] = json!(7);
+    let boundary = peer_boundary(&extended);
+    assert_eq!(boundary["status"], extended);
+    assert_eq!(boundary["key"]["link_id"], "observed-link");
+    assert_eq!(boundary["missing_optional_fields"], json!(["srtt_age_ms", "rekey", "direct_probe"]));
+}
+
+fn counter_delta(before: &[u64; 4], after: &[u64; 4]) -> Result<[u64; 4]> {
+    let mut delta = [0; 4];
+    for index in 0..delta.len() {
+        delta[index] = after[index]
+            .checked_sub(before[index])
+            .context("transit traffic counter reset")?;
+    }
+    Ok(delta)
+}
+
+fn traffic_delta(before: &TrafficSnapshot, after: &TrafficSnapshot) -> Result<([u64; 4], Value)> {
+    let total = counter_delta(&before.total, &after.total)?;
+    let mut per_role = serde_json::Map::new();
+    for (index, role) in TRAFFIC_ROLES.into_iter().enumerate() {
+        ensure!(before.roles[index].0 == after.roles[index].0, "{role} identity changed during idle");
+        let [sent, received, sent_packets, received_packets] =
+            counter_delta(&before.roles[index].1, &after.roles[index].1)
+                .with_context(|| format!("idle {role}"))?;
+        per_role.insert(role.to_string(), json!({
+            "sent_bytes": sent, "received_bytes": received,
+            "sent_packets": sent_packets, "received_packets": received_packets,
+        }));
+    }
+    Ok((total, Value::Object(per_role)))
+}
+
+#[test]
+fn traffic_samples_reject_role_changes_and_per_role_counter_resets() {
+    let roles = ["chat-device", "drive-device", "public-provider"];
+    let status = json!({"fips": {"peer_statuses":
+        [roles[0], roles[1], roles[2], "anonymous-reader"].map(|identity|
+            json!({"npub": identity, "connected": true, "transport_type": "udp",
+                "bytes_sent": 100, "bytes_recv": 200, "packets_sent": 3, "packets_recv": 4}))}});
+    let before = traffic_snapshot(&status, &roles, "chat-account", "anonymous-reader").unwrap();
+    let mut after = before.clone();
+    after.total = [440, 880, 16, 20];
+    for (_, counters) in &mut after.roles {
+        *counters = [110, 220, 4, 5];
+    }
+    let (total, detail) = traffic_delta(&before, &after).unwrap();
+    assert_eq!(total, [40, 80, 4, 4]);
+    for role in TRAFFIC_ROLES {
+        assert_eq!(detail[role], json!({"sent_bytes": 10, "received_bytes": 20,
+            "sent_packets": 1, "received_packets": 1}));
+    }
+    for role in 0..4 {
+        let mut changed = after.clone();
+        changed.roles[role].0 = "different-identity".to_string();
+        assert!(traffic_delta(&before, &changed).is_err());
+        for counter in 0..4 {
+            let mut reset = after.clone();
+            reset.roles[role].1[counter] = before.roles[role].1[counter] - 1;
+            // Other peers' growth cannot mask one role's reset.
+            assert!(traffic_delta(&before, &reset).is_err());
+        }
+    }
+    let mut changed_status = status.clone();
+    changed_status["fips"]["peer_statuses"][3]["npub"] = json!("new-reader");
+    assert!(traffic_snapshot(&changed_status, &roles, "chat-account", "anonymous-reader").is_err());
+    assert!(traffic_snapshot(&status, &roles, "chat-account", "chat-account").is_err());
+    let mut extra_status = status.clone();
+    let mut retired = extra_status["fips"]["peer_statuses"][0].clone();
+    retired["npub"] = json!("retired-reader");
+    retired["connected"] = json!(false);
+    extra_status["fips"]["peer_statuses"].as_array_mut().unwrap().push(retired);
+    let extra = traffic_snapshot(&extra_status, &roles, "chat-account", "anonymous-reader").unwrap();
+    assert_eq!(extra.total, [500, 1000, 15, 20]);
+    assert_eq!(extra.roles, before.roles);
 }
 
 async fn assert_provider_transit(address: &str, transit: &str) -> Result<()> {
@@ -808,13 +1018,13 @@ async fn with_mesh_diagnostics<T>(
     status_addresses: [(&str, &str); 2],
 ) -> Result<T> {
     if let Err(error) = &result {
-        eprintln!("blob operation failed: {error:#}");
+        eprintln!("mesh check failed: {error:#}");
         // Capture actual authenticated peer state and every process's logs while
         // the processes are alive, before TestRoot/ManagedProcess cleanup.
         for (label, address) in status_addresses {
             eprintln!(
-                "{label} FIPS status: {:?}",
-                product::fetch_status(address).await
+                "{label} FIPS status (bounded): {}",
+                diagnostic_tail(&format!("{:?}", product::fetch_status(address).await))
             );
         }
         for (label, process) in std::iter::once(("Chat", chat)).chain(other_processes) {
@@ -822,20 +1032,21 @@ async fn with_mesh_diagnostics<T>(
                 ("stderr", process.stderr_snapshot()),
                 ("stdout", process.stdout_snapshot()),
             ] {
-                let tail = text
-                    .lines()
-                    .rev()
-                    .take(80)
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev()
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                eprintln!("{label} {stream} (last 80 lines):\n{tail}");
+                let tail = diagnostic_tail(&text);
+                eprintln!("{label} {stream} (last 80 lines, at most 16 KiB):\n{tail}");
             }
         }
     }
     result
+}
+
+fn diagnostic_tail(text: &str) -> String {
+    let mut start = text.len().saturating_sub(16 * 1024);
+    while !text.is_char_boundary(start) {
+        start += 1;
+    }
+    text[start..].lines().rev().take(80).collect::<Vec<_>>()
+        .into_iter().rev().collect::<Vec<_>>().join("\n")
 }
 
 async fn fetch_blob(chat: &mut ManagedProcess, blob: &Blob) -> Result<u128> {

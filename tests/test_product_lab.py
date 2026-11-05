@@ -49,7 +49,10 @@ if args[0] == "test":
 if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
     pathlib.Path(os.environ["IRIS_STACK_MESH_METRICS_PATH"]).write_text(
         os.environ.get("TEST_BAD_METRICS") or json.dumps({
-            "public_relays": 0, "idle": [{"cpu_percent": [0.5, 0.5, 0.5, 0.5]}] * 2}))
+            "public_relays": 0, "functional_recovery_complete": True, "wire_budget_passed": True,
+            "idle": [{"cpu_percent": [0.5, 0.5, 0.5, 0.5]}] * 2}))
+    if os.environ.get("TEST_FAIL_AFTER_METRICS"):
+        sys.exit(23)
 ''')
 
     def executable(self, name, source):
@@ -138,6 +141,29 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertEqual(result.returncode, 23, result.stderr)
         self.assertFalse((self.install / "receipt.json").exists())
         self.assertNotIn("relayless_mesh_product", self.commands()[-1])
+
+    def test_failed_mesh_retains_partial_metrics_and_installed_hashes_without_success(self):
+        self.install.mkdir()
+        (self.install / "receipt.json").write_text('{"status":"passed"}')
+        metrics = {"status": "incomplete", "functional_recovery_complete": False,
+                   "wire_budget_passed": False, "idle": [{"combined_bytes_per_second": 5438.9}]}
+        result = self.run_lab(TEST_FAIL_AFTER_METRICS="1", TEST_BAD_METRICS=json.dumps(metrics))
+        self.assertEqual(result.returncode, 23, result.stderr)
+        self.assertFalse((self.install / "receipt.json").exists())
+        self.assertEqual(json.loads((self.install / "mesh-metrics.json").read_text()), metrics)
+        inputs = json.loads((self.install / "product-inputs.json").read_text())
+        self.assertEqual(inputs["status"], "prepared")
+        self.assertEqual(set(inputs["products"]), {"hashtree", "drive", "chat"})
+        self.assertEqual(inputs["products"]["chat"]["rev"], "50f34d618cb50edf70896fd4c1acb279342d07cf")
+        self.assertTrue(all(len(item["sha256"]) == 64 for item in inputs["products"].values()))
+
+    def test_incomplete_or_failed_measurements_never_write_success(self):
+        for complete, passed in [(False, True), (True, False)]:
+            metrics = {"functional_recovery_complete": complete, "wire_budget_passed": passed,
+                       "idle": [{"cpu_percent": [0.5] * 4}] * 2}
+            result = self.run_lab(TEST_BAD_METRICS=json.dumps(metrics))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse((self.install / "receipt.json").exists())
 
     def test_missing_metrics_never_writes_success(self):
         result = self.run_lab(TEST_NO_METRICS="1")
