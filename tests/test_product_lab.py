@@ -9,6 +9,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SHA = "a" * 40
+PREFLIGHT = ["test", "--locked", "--test", "drive_htree_product",
+             "--test", "chat_drive_htree_product", "--test", "relayless_mesh_product", "--no-run"]
 
 
 class ProductLabTests(unittest.TestCase):
@@ -33,6 +35,10 @@ with open(os.environ["TEST_CALLS"], "a") as f:
 with open(os.environ["TEST_COMMAND_ENVS"], "a") as f:
     f.write(json.dumps({"args": args, "relays": os.environ.get("NOSTR_RELAYS"),
                         "cli_fetch": os.environ.get("CARGO_NET_GIT_FETCH_WITH_CLI")}) + "\\n")
+if "--no-run" in args:
+    # A compile-only command must not invoke runtime-only failure controls or
+    # manufacture the measurements that a real product process would produce.
+    sys.exit(24 if os.environ.get("TEST_FAIL_PREFLIGHT") else 0)
 if os.environ.get("TEST_FAIL") in args:
     sys.exit(23)
 if args[0] == "install":
@@ -73,10 +79,15 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         result = self.run_lab()
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.commands()
-        self.assertIn("--locked", calls[0])
-        self.assertEqual(calls[0][calls[0].index("--rev") + 1],
+        self.assertEqual(calls[0], PREFLIGHT)
+        self.assertEqual(sum("--no-run" in command for command in calls), 1)
+        installs = [command for command in calls if command[0] == "install"]
+        self.assertEqual(len(installs), 3)
+        self.assertIn("--locked", installs[0])
+        self.assertEqual(installs[0][installs[0].index("--rev") + 1],
                          "a0f748953c73187ec0d47354ebdaa6669943cbce")
-        self.assertEqual([c[c.index("--test") + 1] for c in calls if c[0] == "test"],
+        self.assertEqual([c[c.index("--test") + 1] for c in calls
+                          if c[0] == "test" and "--no-run" not in c],
                          ["drive_htree_product", "chat_drive_htree_product", "relayless_mesh_product"])
         receipt = json.loads((self.install / "receipt.json").read_text())
         self.assertEqual(receipt["products"]["hashtree"]["rev"],
@@ -115,7 +126,7 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
     def test_hashtree_candidate_uses_exact_public_source_and_locked_install(self):
         result = self.run_lab(IRIS_STACK_HTREE_REV=SHA)
         self.assertEqual(result.returncode, 0, result.stderr)
-        command = self.commands()[0]
+        command = next(command for command in self.commands() if command[0] == "install")
         self.assertIn("--locked", command)
         self.assertIn("https://github.com/mmalmi/hashtree", command)
         self.assertEqual(command[command.index("--rev") + 1], SHA)
@@ -134,13 +145,31 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(self.calls.exists())
 
+    def test_preflight_failure_stops_before_installs_and_never_creates_runtime_evidence(self):
+        self.install.mkdir()
+        for name in ["receipt.json", "product-inputs.json", "mesh-metrics.json"]:
+            (self.install / name).write_text('{"status":"stale"}')
+        # The runtime failure control also matches a preflight test name. It
+        # must not override the compile-only exit or create runtime metrics.
+        result = self.run_lab(TEST_FAIL_PREFLIGHT="1", TEST_FAIL="relayless_mesh_product")
+        self.assertEqual(result.returncode, 24, result.stderr)
+        self.assertEqual(self.commands(), [PREFLIGHT])
+        self.assertFalse((self.install / "bin").exists())
+        self.assertFalse((self.root / "runtime-env.json").exists())
+        for name in ["receipt.json", "product-inputs.json", "mesh-metrics.json"]:
+            self.assertFalse((self.install / name).exists(), name)
+
     def test_failed_gate_removes_stale_success_and_preserves_failure(self):
         self.install.mkdir()
         (self.install / "receipt.json").write_text('{"status":"passed"}')
         result = self.run_lab(TEST_FAIL="chat_drive_htree_product")
         self.assertEqual(result.returncode, 23, result.stderr)
         self.assertFalse((self.install / "receipt.json").exists())
-        self.assertNotIn("relayless_mesh_product", self.commands()[-1])
+        calls = self.commands()
+        self.assertEqual(calls[0], PREFLIGHT)
+        self.assertEqual(len([command for command in calls if command[0] == "install"]), 3)
+        self.assertNotIn("--no-run", calls[-1])
+        self.assertNotIn("relayless_mesh_product", calls[-1])
 
     def test_failed_mesh_retains_partial_metrics_and_installed_hashes_without_success(self):
         self.install.mkdir()

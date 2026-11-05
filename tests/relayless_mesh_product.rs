@@ -666,10 +666,10 @@ fn traffic_delta(before: &TrafficSnapshot, after: &TrafficSnapshot) -> Result<([
 #[test]
 fn traffic_samples_reject_role_changes_and_per_role_counter_resets() {
     let roles = ["chat-device", "drive-device", "public-provider"];
-    let status = json!({"fips": {"peer_statuses":
-        [roles[0], roles[1], roles[2], "anonymous-reader"].map(|identity|
-            json!({"npub": identity, "connected": true, "transport_type": "udp",
-                "bytes_sent": 100, "bytes_recv": 200, "packets_sent": 3, "packets_recv": 4}))}});
+    let peers = [roles[0], roles[1], roles[2], "anonymous-reader"].map(|identity|
+        json!({"npub": identity, "connected": true, "transport_type": "udp",
+            "bytes_sent": 100, "bytes_recv": 200, "packets_sent": 3, "packets_recv": 4}));
+    let status = json!({"fips": {"peer_statuses": peers}});
     let before = traffic_snapshot(&status, &roles, "chat-account", "anonymous-reader").unwrap();
     let mut after = before.clone();
     after.total = [440, 880, 16, 20];

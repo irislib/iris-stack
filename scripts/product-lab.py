@@ -69,6 +69,11 @@ def main():
     require(not release or re.fullmatch(r"[0-9a-f]{40}", expected_lab), "Release gates require an exact IRIS_STACK_LAB_REV")
     require(not expected_lab or lab_revision == expected_lab, "Lab checkout does not match the requested revision")
     require(not release or not dirty, "Release gate lab sources must be clean")
+    # Catch lab fixture compile failures before installing any product. Later
+    # runtime tests reuse these executables from the same Cargo target cache.
+    subprocess.run(["cargo", "test", "--locked", "--test", "drive_htree_product",
+                    "--test", "chat_drive_htree_product", "--test", "relayless_mesh_product",
+                    "--no-run"], cwd=ROOT, check=True, env=env)
     env["PATH"] = str(install / "bin") + os.pathsep + env["PATH"]
     products = {}
     for name, package, features, binaries, binary_key, binary, provenance in plans:
