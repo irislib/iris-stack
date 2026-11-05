@@ -1,3 +1,5 @@
+#[path = "support/endpoint_traffic.rs"]
+mod endpoint_traffic;
 #[allow(dead_code)]
 #[path = "support/product.rs"]
 mod product;
@@ -251,7 +253,12 @@ async fn run_mesh() -> Result<()> {
     let reader = wait_for_reader(&transit_http, &roles, chat_owner, None).await?;
     let before_partition = idle_resources(
         "before partition",
-        [&chat, &transit_process, &drive, &provider_process],
+        [
+            &mut chat,
+            &mut transit_process,
+            &mut drive,
+            &mut provider_process,
+        ],
         &transit_http,
         &roles,
         chat_owner,
@@ -328,19 +335,23 @@ async fn run_mesh() -> Result<()> {
         tokio::try_join!(
             async {
                 product::wait_for_fips_peer_connection(&transit_http, chat_npub)
-                    .await.context("rejoin: new B authenticate Chat A over UDP")
+                    .await
+                    .context("rejoin: new B authenticate Chat A over UDP")
             },
             async {
                 product::wait_for_fips_peer_connection(&transit_http, &drive_identity.npub)
-                    .await.context("rejoin: new B authenticate Drive C over UDP")
+                    .await
+                    .context("rejoin: new B authenticate Drive C over UDP")
             },
             async {
                 product::wait_for_fips_peer_connection(&transit_http, &provider_npub)
-                    .await.context("rejoin: new B authenticate public provider P over UDP")
+                    .await
+                    .context("rejoin: new B authenticate public provider P over UDP")
             },
         )?;
         let fresh_status = product::fetch_status(&transit_http)
-            .await.context("rejoin: capture new B authenticated status")?;
+            .await
+            .context("rejoin: capture new B authenticated status")?;
         rejoin["fresh_replacement_status"] = fresh_status;
         require_fresh_replacement_roles(&rejoin["fresh_replacement_status"], &roles)?;
         rejoin["fresh_links_ready_ms"] = json!(rejoin_clock.elapsed().as_millis());
@@ -372,9 +383,19 @@ async fn run_mesh() -> Result<()> {
     .context("rejoin: overall 60-second startup/authentication/readiness/delivery budget")
     .and_then(|result| result);
     rejoin["phase_finished_ms"] = json!(rejoin_clock.elapsed().as_millis());
-    rejoin["status"] = json!(if recovery_result.is_ok() { "event_phase_complete" } else { "failed" });
-    rejoin["error"] = json!(recovery_result.as_ref().err().map(|error| format!("{error:#}")));
-    rejoin["event_ids"] = json!({"chat_to_drive": queued_chat["id"], "drive_to_chat": queued_drive["id"]});
+    rejoin["status"] = json!(if recovery_result.is_ok() {
+        "event_phase_complete"
+    } else {
+        "failed"
+    });
+    rejoin["error"] = json!(
+        recovery_result
+            .as_ref()
+            .err()
+            .map(|error| format!("{error:#}"))
+    );
+    rejoin["event_ids"] =
+        json!({"chat_to_drive": queued_chat["id"], "drive_to_chat": queued_drive["id"]});
     // Keep timings and the actual new-process status even if delivery fails.
     // Full functional recovery is still gated by the remaining blob/idle checks.
     write_mesh_metrics(&json!({
@@ -390,7 +411,10 @@ async fn run_mesh() -> Result<()> {
             ("replacement transit", &mut replacement),
             ("provider", &mut provider_process),
         ],
-        [("replacement transit", &transit_http), ("provider", &provider_http)],
+        [
+            ("replacement transit", &transit_http),
+            ("provider", &provider_http),
+        ],
     )
     .await?;
     product::wait_for_htree_fips_peer(&provider_http, &transit_npub).await?;
@@ -412,7 +436,12 @@ async fn run_mesh() -> Result<()> {
     let recovered_reader = wait_for_reader(&transit_http, &roles, chat_owner, None).await?;
     let after_recovery = idle_resources(
         "after recovery",
-        [&chat, &replacement, &drive, &provider_process],
+        [
+            &mut chat,
+            &mut replacement,
+            &mut drive,
+            &mut provider_process,
+        ],
         &transit_http,
         &roles,
         chat_owner,
@@ -468,7 +497,10 @@ async fn run_mesh() -> Result<()> {
 }
 
 fn require_fresh_replacement_roles(status: &Value, roles: &[&str; 3]) -> Result<()> {
-    for (label, identity) in ["Chat A", "Drive C", "public provider P"].into_iter().zip(roles) {
+    for (label, identity) in ["Chat A", "Drive C", "public provider P"]
+        .into_iter()
+        .zip(roles)
+    {
         ensure!(
             product::fips_udp_peer_connected(status, identity),
             "rejoin: new B status did not retain authenticated UDP role {label}"
@@ -480,9 +512,11 @@ fn require_fresh_replacement_roles(status: &Value, roles: &[&str; 3]) -> Result<
 #[test]
 fn replacement_readiness_requires_every_authenticated_udp_role() {
     let roles = ["chat-device", "drive-device", "public-provider"];
-    let peers = roles.map(|identity| json!({
-        "npub": identity, "connected": true, "transport_type": "udp"
-    }));
+    let peers = roles.map(|identity| {
+        json!({
+            "npub": identity, "connected": true, "transport_type": "udp"
+        })
+    });
     let status = json!({"fips": {"peer_statuses": peers}});
     assert!(require_fresh_replacement_roles(&status, &roles).is_ok());
     for index in 0..3 {
@@ -496,7 +530,10 @@ fn replacement_readiness_requires_every_authenticated_udp_role() {
             assert!(require_fresh_replacement_roles(&invalid, &roles).is_err());
         }
         let mut missing = status.clone();
-        missing["fips"]["peer_statuses"].as_array_mut().unwrap().remove(index);
+        missing["fips"]["peer_statuses"]
+            .as_array_mut()
+            .unwrap()
+            .remove(index);
         assert!(require_fresh_replacement_roles(&missing, &roles).is_err());
     }
 }
@@ -542,12 +579,13 @@ async fn status(process: &mut ManagedProcess) -> Result<Value> {
 
 async fn idle_resources(
     phase: &str,
-    processes: [&ManagedProcess; 4],
+    processes: [&mut ManagedProcess; 4],
     transit_http: &str,
     roles: &[&str; 3],
     chat_owner: &str,
     reader: &str,
 ) -> Result<Value> {
+    let [chat, transit, drive, provider] = processes;
     let cpu_budget = std::env::var("IRIS_STACK_IDLE_MAX_CPU_PERCENT")
         .ok()
         .map(|value| value.parse::<f64>())
@@ -565,8 +603,13 @@ async fn idle_resources(
     // HTree B/P is the existing tracing subscriber. Cursors use complete raw
     // lines and remain valid byte offsets even if capture later overflows.
     let counter_started_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-    let diagnostic_offsets = [processes[1].stderr_cursor(), processes[3].stderr_cursor()];
+    let diagnostic_offsets = [transit.stderr_cursor(), provider.stderr_cursor()];
+    let endpoint_before = [
+        endpoint_counter_boundary(chat).await?,
+        endpoint_counter_boundary(drive).await?,
+    ];
     let before_traffic = transit_traffic(transit_http, roles, chat_owner, reader).await?;
+    let processes = [&*chat, &*transit, &*drive, &*provider];
     let mut before_cpu = [None; 4];
     for (index, process) in processes.iter().enumerate() {
         before_cpu[index] = process.cpu_seconds().await?;
@@ -596,6 +639,12 @@ async fn idle_resources(
         )
         .with_context(|| format!("idle process {}", ["A", "B", "C", "P"][index]))?;
     }
+    // Read after the existing CPU samples so these RPCs do not extend their window.
+    let endpoint_after = [
+        endpoint_counter_boundary(chat).await?,
+        endpoint_counter_boundary(drive).await?,
+    ];
+    let endpoint_traffic = endpoint_traffic::evidence(&endpoint_before, &endpoint_after)?;
     let [transit_logs, provider_logs] = phase_logs;
     let diagnostic_logs = [
         phase_log_observations("transit", transit_logs),
@@ -622,7 +671,7 @@ async fn idle_resources(
         "diagnostic_scope": "Log cursors bracket the counter samples. Complete lines may cross a boundary and async pipe draining may lag it; line timestamps must be compared with these times. No exact wire synchronization is claimed.",
         "sample_started_unix_ms": sample_started_unix_ms,
         "sample_finished_unix_ms": sample_finished_unix_ms,
-        "diagnostic_logs": diagnostic_logs,
+        "diagnostic_logs": diagnostic_logs, "endpoint_traffic": endpoint_traffic,
         "cpu_budget_percent": cpu_budget, "cpu_required": cpu_required,
         "sent_bytes": sent, "received_bytes": received,
         "sent_packets": sent_packets, "received_packets": received_packets,
@@ -633,35 +682,64 @@ async fn idle_resources(
     )
 }
 
+async fn endpoint_counter_boundary(process: &mut ManagedProcess) -> Result<Value> {
+    let started = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+    let current = status(process).await?;
+    let snapshot = endpoint_traffic::validate(&current["traffic"])?;
+    let finished = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+    Ok(json!({"started_unix_ms": started, "finished_unix_ms": finished, "snapshot": snapshot}))
+}
+
 // These are occurrences of existing log messages, never a packet-type byte
 // accounting model. Forwarding may use paths without this debug event, and
 // opaque session data cannot identify application content or retransmissions.
 const OBSERVED_MESSAGES: [&str; 9] = [
-    "Received SenderReport", "Processed ReceiverReport", "Received heartbeat",
-    "Sent TreeAnnounce", "Processed TreeAnnounce",
+    "Received SenderReport",
+    "Processed ReceiverReport",
+    "Received heartbeat",
+    "Sent TreeAnnounce",
+    "Processed TreeAnnounce",
     "TreeAnnounce not fresher than existing, ignored",
-    "Sent FilterAnnounce", "Received FilterAnnounce", "Forwarding SessionDatagram",
+    "Sent FilterAnnounce",
+    "Received FilterAnnounce",
+    "Forwarding SessionDatagram",
 ];
 
 fn phase_log_observations(label: &str, observation: StderrObservation) -> Value {
     let phase = &observation.text;
     let mut counts = serde_json::Map::new();
     for message in OBSERVED_MESSAGES {
-        counts.insert(message.to_string(), json!(phase.lines().filter(|line|
-            line.contains("fips_core::") && line.contains(message)).count()));
+        counts.insert(
+            message.to_string(),
+            json!(
+                phase
+                    .lines()
+                    .filter(|line| line.contains("fips_core::") && line.contains(message))
+                    .count()
+            ),
+        );
     }
     // Reuse the existing diagnostic output bounds for each B/P phase. Count
     // over the whole captured phase before truncating its retained excerpt.
-    let selected = phase.lines().filter(|line| line.contains("fips_core::") &&
-        (OBSERVED_MESSAGES.iter().any(|message| line.contains(message)) ||
-         line.contains("MMP link metrics") || line.contains("MMP session metrics") ||
-         line.contains("fips_core::node::handlers::handshake")))
+    let selected = phase
+        .lines()
+        .filter(|line| {
+            line.contains("fips_core::")
+                && (OBSERVED_MESSAGES
+                    .iter()
+                    .any(|message| line.contains(message))
+                    || line.contains("MMP link metrics")
+                    || line.contains("MMP session metrics")
+                    || line.contains("fips_core::node::handlers::handshake"))
+        })
         .collect::<Vec<_>>();
     let total_lines = selected.len();
     let mut tail = String::new();
     let mut retained_lines = 0;
     for line in selected.into_iter().rev().take(80) {
-        if tail.len() + line.len() + 1 > 16 * 1024 { break; }
+        if tail.len() + line.len() + 1 > 16 * 1024 {
+            break;
+        }
         tail.insert_str(0, &format!("{line}\n"));
         retained_lines += 1;
     }
@@ -681,21 +759,39 @@ fn phase_log_observations(label: &str, observation: StderrObservation) -> Value 
 #[test]
 fn phase_log_observations_keep_counts_and_explicit_incompleteness() {
     let observation = |text: String, complete: bool| StderrObservation {
-        offset: 0, retained_bytes: text.len(), total_bytes: text.len() as u64,
-        pending_line_bytes: 0, text, complete, overflow: !complete, line_overflow: false,
-        read_error: None, cursor_valid: true, utf8_valid: true,
+        offset: 0,
+        retained_bytes: text.len(),
+        total_bytes: text.len() as u64,
+        pending_line_bytes: 0,
+        text,
+        complete,
+        overflow: !complete,
+        line_overflow: false,
+        read_error: None,
+        cursor_valid: true,
+        utf8_valid: true,
     };
-    let phase = "fips_core::node::handlers::mmp: Received SenderReport peer=synthetic\n".repeat(100);
+    let phase =
+        "fips_core::node::handlers::mmp: Received SenderReport peer=synthetic\n".repeat(100);
     let output = phase_log_observations("transit", observation(phase.clone(), true));
-    assert_eq!(output["observed_message_counts"]["Received SenderReport"], 100);
+    assert_eq!(
+        output["observed_message_counts"]["Received SenderReport"],
+        100
+    );
     assert_eq!(output["retained_lines"], 80);
     assert_eq!(output["omitted_lines"], 20);
     assert!(output["tail"].as_str().unwrap().len() <= 16 * 1024);
     let incomplete = phase_log_observations("transit", observation(phase, false));
     assert_eq!(incomplete["complete"], false);
     assert_eq!(incomplete["overflow"], true);
-    assert_eq!(incomplete["observed_message_counts"]["Received SenderReport"], 100);
-    let long = format!("fips_core::node::tree: Sent TreeAnnounce {}\n", "α".repeat(9 * 1024));
+    assert_eq!(
+        incomplete["observed_message_counts"]["Received SenderReport"],
+        100
+    );
+    let long = format!(
+        "fips_core::node::tree: Sent TreeAnnounce {}\n",
+        "α".repeat(9 * 1024)
+    );
     let bounded = phase_log_observations("transit", observation(long, true));
     assert_eq!(bounded["observed_message_counts"]["Sent TreeAnnounce"], 1);
     assert_eq!(bounded["retained_lines"], 0);
@@ -770,7 +866,12 @@ async fn transit_traffic(
     chat_owner: &str,
     reader: &str,
 ) -> Result<TrafficSnapshot> {
-    traffic_snapshot(&product::fetch_status(address).await?, roles, chat_owner, reader)
+    traffic_snapshot(
+        &product::fetch_status(address).await?,
+        roles,
+        chat_owner,
+        reader,
+    )
 }
 
 fn peer_counters(peer: &Value) -> Result<[u64; 4]> {
@@ -810,8 +911,12 @@ fn traffic_snapshot(
                 .context("transit traffic counter overflow")?;
         }
     }
-    for (index, identity) in [roles[0], roles[1], roles[2], reader].into_iter().enumerate() {
-        let peer = peers.iter()
+    for (index, identity) in [roles[0], roles[1], roles[2], reader]
+        .into_iter()
+        .enumerate()
+    {
+        let peer = peers
+            .iter()
             .find(|peer| peer["connected"] == true && peer["npub"] == identity)
             .context("traffic role disappeared")?;
         snapshot.roles[index] = (identity.to_string(), peer_counters(peer)?);
@@ -842,8 +947,14 @@ fn peer_boundaries_preserve_actual_fields_and_mark_missing_observations() {
         "bytes_sent": 100, "bytes_recv": 200, "packets_sent": 3, "packets_recv": 4});
     let boundary = peer_boundary(&peer);
     assert_eq!(boundary["status"], peer);
-    assert_eq!(boundary["key"], json!({"npub": "anonymous-reader", "link_id": null, "connected": true}));
-    assert_eq!(boundary["missing_optional_fields"], json!(["link_id", "srtt_ms", "srtt_age_ms", "rekey", "direct_probe"]));
+    assert_eq!(
+        boundary["key"],
+        json!({"npub": "anonymous-reader", "link_id": null, "connected": true})
+    );
+    assert_eq!(
+        boundary["missing_optional_fields"],
+        json!(["link_id", "srtt_ms", "srtt_age_ms", "rekey", "direct_probe"])
+    );
     // Future API fields, including an explicit null, are retained without
     // inventing a value or incorrectly labelling a present field as absent.
     let mut extended = peer.clone();
@@ -853,7 +964,10 @@ fn peer_boundaries_preserve_actual_fields_and_mark_missing_observations() {
     let boundary = peer_boundary(&extended);
     assert_eq!(boundary["status"], extended);
     assert_eq!(boundary["key"]["link_id"], "observed-link");
-    assert_eq!(boundary["missing_optional_fields"], json!(["srtt_age_ms", "rekey", "direct_probe"]));
+    assert_eq!(
+        boundary["missing_optional_fields"],
+        json!(["srtt_age_ms", "rekey", "direct_probe"])
+    );
 }
 
 fn counter_delta(before: &[u64; 4], after: &[u64; 4]) -> Result<[u64; 4]> {
@@ -870,14 +984,20 @@ fn traffic_delta(before: &TrafficSnapshot, after: &TrafficSnapshot) -> Result<([
     let total = counter_delta(&before.total, &after.total)?;
     let mut per_role = serde_json::Map::new();
     for (index, role) in TRAFFIC_ROLES.into_iter().enumerate() {
-        ensure!(before.roles[index].0 == after.roles[index].0, "{role} identity changed during idle");
+        ensure!(
+            before.roles[index].0 == after.roles[index].0,
+            "{role} identity changed during idle"
+        );
         let [sent, received, sent_packets, received_packets] =
             counter_delta(&before.roles[index].1, &after.roles[index].1)
                 .with_context(|| format!("idle {role}"))?;
-        per_role.insert(role.to_string(), json!({
-            "sent_bytes": sent, "received_bytes": received,
-            "sent_packets": sent_packets, "received_packets": received_packets,
-        }));
+        per_role.insert(
+            role.to_string(),
+            json!({
+                "sent_bytes": sent, "received_bytes": received,
+                "sent_packets": sent_packets, "received_packets": received_packets,
+            }),
+        );
     }
     Ok((total, Value::Object(per_role)))
 }
@@ -885,9 +1005,10 @@ fn traffic_delta(before: &TrafficSnapshot, after: &TrafficSnapshot) -> Result<([
 #[test]
 fn traffic_samples_reject_role_changes_and_per_role_counter_resets() {
     let roles = ["chat-device", "drive-device", "public-provider"];
-    let peers = [roles[0], roles[1], roles[2], "anonymous-reader"].map(|identity|
+    let peers = [roles[0], roles[1], roles[2], "anonymous-reader"].map(|identity| {
         json!({"npub": identity, "connected": true, "transport_type": "udp",
-            "bytes_sent": 100, "bytes_recv": 200, "packets_sent": 3, "packets_recv": 4}));
+            "bytes_sent": 100, "bytes_recv": 200, "packets_sent": 3, "packets_recv": 4})
+    });
     let status = json!({"fips": {"peer_statuses": peers}});
     let before = traffic_snapshot(&status, &roles, "chat-account", "anonymous-reader").unwrap();
     let mut after = before.clone();
@@ -898,8 +1019,11 @@ fn traffic_samples_reject_role_changes_and_per_role_counter_resets() {
     let (total, detail) = traffic_delta(&before, &after).unwrap();
     assert_eq!(total, [40, 80, 4, 4]);
     for role in TRAFFIC_ROLES {
-        assert_eq!(detail[role], json!({"sent_bytes": 10, "received_bytes": 20,
-            "sent_packets": 1, "received_packets": 1}));
+        assert_eq!(
+            detail[role],
+            json!({"sent_bytes": 10, "received_bytes": 20,
+            "sent_packets": 1, "received_packets": 1})
+        );
     }
     for role in 0..4 {
         let mut changed = after.clone();
@@ -920,8 +1044,12 @@ fn traffic_samples_reject_role_changes_and_per_role_counter_resets() {
     let mut retired = extra_status["fips"]["peer_statuses"][0].clone();
     retired["npub"] = json!("retired-reader");
     retired["connected"] = json!(false);
-    extra_status["fips"]["peer_statuses"].as_array_mut().unwrap().push(retired);
-    let extra = traffic_snapshot(&extra_status, &roles, "chat-account", "anonymous-reader").unwrap();
+    extra_status["fips"]["peer_statuses"]
+        .as_array_mut()
+        .unwrap()
+        .push(retired);
+    let extra =
+        traffic_snapshot(&extra_status, &roles, "chat-account", "anonymous-reader").unwrap();
     assert_eq!(extra.total, [500, 1000, 15, 20]);
     assert_eq!(extra.roles, before.roles);
 }
@@ -1264,8 +1392,15 @@ fn diagnostic_tail(text: &str) -> String {
     while !text.is_char_boundary(start) {
         start += 1;
     }
-    text[start..].lines().rev().take(80).collect::<Vec<_>>()
-        .into_iter().rev().collect::<Vec<_>>().join("\n")
+    text[start..]
+        .lines()
+        .rev()
+        .take(80)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 async fn fetch_blob(chat: &mut ManagedProcess, blob: &Blob) -> Result<u128> {
