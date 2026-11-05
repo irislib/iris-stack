@@ -18,8 +18,8 @@ PUBLIC_SOURCES = {
 }
 PRODUCTS = [
     ("hashtree", "HTREE", "hashtree-cli", "fips-webrtc,git-remote-wrapper", ["htree", "git-remote-htree"], ""),
-    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "967bd011b84643bf5d9d394fca70b0b5c6bcfce9"),
-    ("chat", "CHAT", "iris-chat", "stack-fixture", ["iris-chat-stack-fixture"], "50f34d618cb50edf70896fd4c1acb279342d07cf"),
+    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "edba4842b6ce03ae382d036dc09b179445ace759"),
+    ("chat", "CHAT", "iris-chat", "stack-fixture", ["iris-chat-stack-fixture"], "b83e6a6ec9ccc8895a887ab42a4d20f5e60f4e70"),
 ]
 
 
@@ -53,7 +53,7 @@ def main():
         version = env.get("IRIS_STACK_HTREE_VERSION", "") if name == "hashtree" else ""
         require(not (version and rev), "Select htree_rev or htree_version, not both")
         if not rev and not version and name == "hashtree":
-            rev = "a0f748953c73187ec0d47354ebdaa6669943cbce"
+            rev = "458702aada89c0629df9456df38fef9c3f8f6a61"
         require(not rev or re.fullmatch(r"[0-9a-f]{40}", rev), f"{prefix}_REV must be an exact 40-character commit")
         require(not version or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?", version), "htree_version must be one exact version")
         if release:

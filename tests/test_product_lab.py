@@ -85,17 +85,17 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertEqual(len(installs), 3)
         self.assertIn("--locked", installs[0])
         self.assertEqual(installs[0][installs[0].index("--rev") + 1],
-                         "a0f748953c73187ec0d47354ebdaa6669943cbce")
+                         "458702aada89c0629df9456df38fef9c3f8f6a61")
         self.assertEqual([c[c.index("--test") + 1] for c in calls
                           if c[0] == "test" and "--no-run" not in c],
                          ["drive_htree_product", "chat_drive_htree_product", "relayless_mesh_product"])
         receipt = json.loads((self.install / "receipt.json").read_text())
         self.assertEqual(receipt["products"]["hashtree"]["rev"],
-                         "a0f748953c73187ec0d47354ebdaa6669943cbce")
+                         "458702aada89c0629df9456df38fef9c3f8f6a61")
         self.assertEqual(receipt["products"]["drive"]["rev"],
-                         "967bd011b84643bf5d9d394fca70b0b5c6bcfce9")
+                         "edba4842b6ce03ae382d036dc09b179445ace759")
         self.assertEqual(receipt["products"]["chat"]["rev"],
-                         "50f34d618cb50edf70896fd4c1acb279342d07cf")
+                         "b83e6a6ec9ccc8895a887ab42a4d20f5e60f4e70")
         self.assertEqual(receipt["metrics"]["public_relays"], 0)
         self.assertEqual(len(receipt["products"]["chat"]["sha256"]), 64)
 
@@ -183,7 +183,7 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         inputs = json.loads((self.install / "product-inputs.json").read_text())
         self.assertEqual(inputs["status"], "prepared")
         self.assertEqual(set(inputs["products"]), {"hashtree", "drive", "chat"})
-        self.assertEqual(inputs["products"]["chat"]["rev"], "50f34d618cb50edf70896fd4c1acb279342d07cf")
+        self.assertEqual(inputs["products"]["chat"]["rev"], "b83e6a6ec9ccc8895a887ab42a4d20f5e60f4e70")
         self.assertTrue(all(len(item["sha256"]) == 64 for item in inputs["products"].values()))
 
     def test_incomplete_or_failed_measurements_never_write_success(self):
