@@ -4,7 +4,7 @@ mod product;
 mod support;
 
 use std::fs;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, ensure};
 use product::{
@@ -13,7 +13,7 @@ use product::{
     spawn_htree, write_hashtree_read_config,
 };
 use serde_json::{Value, json};
-use support::process::ManagedProcess;
+use support::process::{ManagedProcess, StderrObservation};
 use tokio::process::Command;
 use tokio::time::timeout;
 
@@ -562,15 +562,27 @@ async fn idle_resources(
     // spans at least one 60-second managed reputation maintenance interval,
     // regardless of the phase at which sampling begins.
     tokio::time::sleep(Duration::from_secs(3)).await;
+    // HTree B/P is the existing tracing subscriber. Cursors use complete raw
+    // lines and remain valid byte offsets even if capture later overflows.
+    let counter_started_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+    let diagnostic_offsets = [processes[1].stderr_cursor(), processes[3].stderr_cursor()];
     let before_traffic = transit_traffic(transit_http, roles, chat_owner, reader).await?;
     let mut before_cpu = [None; 4];
     for (index, process) in processes.iter().enumerate() {
         before_cpu[index] = process.cpu_seconds().await?;
     }
+    let sample_started_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let started = Instant::now();
+    eprintln!("relayless idle {phase} sample started at Unix ms {sample_started_unix_ms}");
     tokio::time::sleep(Duration::from_secs(65)).await;
     let elapsed = started.elapsed().as_secs_f64();
+    let sample_finished_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let after_traffic = transit_traffic(transit_http, roles, chat_owner, reader).await?;
+    let counter_finished_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+    let phase_logs = [
+        processes[1].stderr_observation(diagnostic_offsets[0]),
+        processes[3].stderr_observation(diagnostic_offsets[1]),
+    ];
     let mut cpu_percent = [None; 4];
     let cpu_required =
         cfg!(target_os = "linux") || std::env::var("IRIS_STACK_REQUIRE_CPU").as_deref() == Ok("1");
@@ -584,6 +596,11 @@ async fn idle_resources(
         )
         .with_context(|| format!("idle process {}", ["A", "B", "C", "P"][index]))?;
     }
+    let [transit_logs, provider_logs] = phase_logs;
+    let diagnostic_logs = [
+        phase_log_observations("transit", transit_logs),
+        phase_log_observations("public_provider", provider_logs),
+    ];
     let (traffic, per_role) = traffic_delta(&before_traffic, &after_traffic)?;
     let [sent, received, sent_packets, received_packets] = traffic;
     let bytes_per_second = (sent + received) as f64 / elapsed;
@@ -600,6 +617,12 @@ async fn idle_resources(
     let wire_budget_passed = check_wire_budget(bytes_per_second).is_ok();
     Ok(
         json!({"phase": phase, "seconds": elapsed, "cpu_percent": cpu_percent,
+        "counter_started_unix_ms": counter_started_unix_ms,
+        "counter_finished_unix_ms": counter_finished_unix_ms,
+        "diagnostic_scope": "Log cursors bracket the counter samples. Complete lines may cross a boundary and async pipe draining may lag it; line timestamps must be compared with these times. No exact wire synchronization is claimed.",
+        "sample_started_unix_ms": sample_started_unix_ms,
+        "sample_finished_unix_ms": sample_finished_unix_ms,
+        "diagnostic_logs": diagnostic_logs,
         "cpu_budget_percent": cpu_budget, "cpu_required": cpu_required,
         "sent_bytes": sent, "received_bytes": received,
         "sent_packets": sent_packets, "received_packets": received_packets,
@@ -608,6 +631,74 @@ async fn idle_resources(
         "peer_boundaries": {"before": before_traffic.peer_statuses,
                             "after": after_traffic.peer_statuses}}),
     )
+}
+
+// These are occurrences of existing log messages, never a packet-type byte
+// accounting model. Forwarding may use paths without this debug event, and
+// opaque session data cannot identify application content or retransmissions.
+const OBSERVED_MESSAGES: [&str; 9] = [
+    "Received SenderReport", "Processed ReceiverReport", "Received heartbeat",
+    "Sent TreeAnnounce", "Processed TreeAnnounce",
+    "TreeAnnounce not fresher than existing, ignored",
+    "Sent FilterAnnounce", "Received FilterAnnounce", "Forwarding SessionDatagram",
+];
+
+fn phase_log_observations(label: &str, observation: StderrObservation) -> Value {
+    let phase = &observation.text;
+    let mut counts = serde_json::Map::new();
+    for message in OBSERVED_MESSAGES {
+        counts.insert(message.to_string(), json!(phase.lines().filter(|line|
+            line.contains("fips_core::") && line.contains(message)).count()));
+    }
+    // Reuse the existing diagnostic output bounds for each B/P phase. Count
+    // over the whole captured phase before truncating its retained excerpt.
+    let selected = phase.lines().filter(|line| line.contains("fips_core::") &&
+        (OBSERVED_MESSAGES.iter().any(|message| line.contains(message)) ||
+         line.contains("MMP link metrics") || line.contains("MMP session metrics") ||
+         line.contains("fips_core::node::handlers::handshake")))
+        .collect::<Vec<_>>();
+    let total_lines = selected.len();
+    let mut tail = String::new();
+    let mut retained_lines = 0;
+    for line in selected.into_iter().rev().take(80) {
+        if tail.len() + line.len() + 1 > 16 * 1024 { break; }
+        tail.insert_str(0, &format!("{line}\n"));
+        retained_lines += 1;
+    }
+    json!({"process": label, "available": observation.cursor_valid,
+        "complete": observation.complete, "overflow": observation.overflow,
+        "line_overflow": observation.line_overflow, "read_error": observation.read_error,
+        "cursor_valid": observation.cursor_valid, "utf8_valid": observation.utf8_valid, "cursor_offset": observation.offset,
+        "retained_stderr_bytes": observation.retained_bytes,
+        "total_stderr_bytes": observation.total_bytes,
+        "pending_partial_line_bytes": observation.pending_line_bytes,
+        "stderr_bytes_in_phase": phase.len(), "observed_message_counts": counts,
+        "selected_lines": total_lines, "retained_lines": retained_lines,
+        "omitted_lines": total_lines - retained_lines, "tail": tail,
+        "scope": "Observed log occurrences only; not complete traffic or retransmission accounting. Timestamps in lines provide the exact log scope."})
+}
+
+#[test]
+fn phase_log_observations_keep_counts_and_explicit_incompleteness() {
+    let observation = |text: String, complete: bool| StderrObservation {
+        offset: 0, retained_bytes: text.len(), total_bytes: text.len() as u64,
+        pending_line_bytes: 0, text, complete, overflow: !complete, line_overflow: false,
+        read_error: None, cursor_valid: true, utf8_valid: true,
+    };
+    let phase = "fips_core::node::handlers::mmp: Received SenderReport peer=synthetic\n".repeat(100);
+    let output = phase_log_observations("transit", observation(phase.clone(), true));
+    assert_eq!(output["observed_message_counts"]["Received SenderReport"], 100);
+    assert_eq!(output["retained_lines"], 80);
+    assert_eq!(output["omitted_lines"], 20);
+    assert!(output["tail"].as_str().unwrap().len() <= 16 * 1024);
+    let incomplete = phase_log_observations("transit", observation(phase, false));
+    assert_eq!(incomplete["complete"], false);
+    assert_eq!(incomplete["overflow"], true);
+    assert_eq!(incomplete["observed_message_counts"]["Received SenderReport"], 100);
+    let long = format!("fips_core::node::tree: Sent TreeAnnounce {}\n", "α".repeat(9 * 1024));
+    let bounded = phase_log_observations("transit", observation(long, true));
+    assert_eq!(bounded["observed_message_counts"]["Sent TreeAnnounce"], 1);
+    assert_eq!(bounded["retained_lines"], 0);
 }
 
 fn checked_cpu_percent(

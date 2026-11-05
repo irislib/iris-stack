@@ -127,8 +127,12 @@ auto_check = false
                 format!(
                     "{requested_log},fips_core::discovery::lan=info,\
                      fips_core::node::lifecycle::runtime=info,\
-                     fips_core::node::handlers::mmp=debug,\
-                     fips_core::node::handlers::handshake=debug"
+                     fips_core::node::handlers::mmp=trace,\
+                     fips_core::node::handlers::handshake=debug,\
+                     fips_core::node::handlers::dispatch=trace,\
+                     fips_core::node::tree=trace,\
+                     fips_core::node::bloom=debug,\
+                     fips_core::node::handlers::forwarding=debug"
                 ),
             )
             .arg("--data-dir")
