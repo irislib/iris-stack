@@ -93,9 +93,9 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertEqual(receipt["products"]["hashtree"]["rev"],
                          "458702aada89c0629df9456df38fef9c3f8f6a61")
         self.assertEqual(receipt["products"]["drive"]["rev"],
-                         "edba4842b6ce03ae382d036dc09b179445ace759")
+                         "8966318dbaea896a2367580f40d15045995a6381")
         self.assertEqual(receipt["products"]["chat"]["rev"],
-                         "25bdcda8b9b98ef6b5de57166502901bd7bd0a6e")
+                         "061c1747575e216db4506d12f2d358dd8c8e0241")
         self.assertEqual(receipt["metrics"]["public_relays"], 0)
         self.assertEqual(len(receipt["products"]["chat"]["sha256"]), 64)
 
@@ -183,7 +183,7 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         inputs = json.loads((self.install / "product-inputs.json").read_text())
         self.assertEqual(inputs["status"], "prepared")
         self.assertEqual(set(inputs["products"]), {"hashtree", "drive", "chat"})
-        self.assertEqual(inputs["products"]["chat"]["rev"], "25bdcda8b9b98ef6b5de57166502901bd7bd0a6e")
+        self.assertEqual(inputs["products"]["chat"]["rev"], "061c1747575e216db4506d12f2d358dd8c8e0241")
         self.assertTrue(all(len(item["sha256"]) == 64 for item in inputs["products"].values()))
 
     def test_incomplete_or_failed_measurements_never_write_success(self):
