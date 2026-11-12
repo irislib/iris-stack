@@ -1,5 +1,7 @@
 #[path = "support/endpoint_traffic.rs"]
 mod endpoint_traffic;
+#[path = "support/negotiation_readiness.rs"]
+mod negotiation_readiness;
 #[allow(dead_code)]
 #[path = "support/product.rs"]
 mod product;
@@ -260,6 +262,7 @@ async fn run_mesh() -> Result<()> {
             &mut provider_process,
         ],
         &transit_http,
+        &transit_npub,
         &roles,
         chat_owner,
         &reader,
@@ -443,6 +446,7 @@ async fn run_mesh() -> Result<()> {
             &mut provider_process,
         ],
         &transit_http,
+        &transit_npub,
         &roles,
         chat_owner,
         &recovered_reader,
@@ -581,6 +585,7 @@ async fn idle_resources(
     phase: &str,
     processes: [&mut ManagedProcess; 4],
     transit_http: &str,
+    transit_npub: &str,
     roles: &[&str; 3],
     chat_owner: &str,
     reader: &str,
@@ -596,10 +601,30 @@ async fn idle_resources(
         cpu_budget.is_finite() && cpu_budget > 0.0,
         "idle CPU budget must be positive and finite"
     );
-    // Let final ACKs settle before sampling. The fixed 65-second window
-    // spans at least one 60-second managed reputation maintenance interval,
-    // regardless of the phase at which sampling begins.
-    tokio::time::sleep(Duration::from_secs(3)).await;
+    // Positive completion of the controlled Drive -> Chat startup attempts,
+    // not low traffic or an arbitrary quiet delay. One absolute 120s deadline
+    // includes every status/counter operation and poll. Cancellation returns to
+    // the existing process owner; kill-on-drop also covers early test failure.
+    let mut startup = json!({"status": "pending", "deadline_seconds": 120});
+    let settled = negotiation_readiness::bounded(settle_negotiation(
+        chat,
+        drive,
+        transit_http,
+        transit_npub,
+        roles,
+        chat_owner,
+        reader,
+        &mut startup,
+    ))
+    .await;
+    if let Err(error) = settled {
+        startup["status"] = json!("failed");
+        startup["error"] = json!(format!("{error:#}"));
+        retain_readiness_failure(phase, &startup)?;
+        return Err(error);
+    }
+    // The unchanged full 65s window spans periodic maintenance; later recurring
+    // traffic is counted in full and can fail the same strict 4 KiB/s limit.
     // HTree B/P is the existing tracing subscriber. Cursors use complete raw
     // lines and remain valid byte offsets even if capture later overflows.
     let counter_started_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
@@ -615,6 +640,15 @@ async fn idle_resources(
         before_cpu[index] = process.cpu_seconds().await?;
     }
     let sample_started_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+    ensure!(
+        negotiation_readiness::ready(
+            &endpoint_before[1]["negotiation"],
+            roles[0],
+            transit_npub,
+            u64::try_from(sample_started_unix_ms)? + 65_000,
+        )?,
+        "initial retry deadline does not cover the complete measurement window"
+    );
     let started = Instant::now();
     eprintln!("relayless idle {phase} sample started at Unix ms {sample_started_unix_ms}");
     tokio::time::sleep(Duration::from_secs(65)).await;
@@ -666,6 +700,7 @@ async fn idle_resources(
     let wire_budget_passed = check_wire_budget(bytes_per_second).is_ok();
     Ok(
         json!({"phase": phase, "seconds": elapsed, "cpu_percent": cpu_percent,
+        "startup": startup,
         "counter_started_unix_ms": counter_started_unix_ms,
         "counter_finished_unix_ms": counter_finished_unix_ms,
         "diagnostic_scope": "Log cursors bracket the counter samples. Complete lines may cross a boundary and async pipe draining may lag it; line timestamps must be compared with these times. No exact wire synchronization is claimed.",
@@ -682,12 +717,93 @@ async fn idle_resources(
     )
 }
 
+async fn settle_negotiation(
+    chat: &mut ManagedProcess,
+    drive: &mut ManagedProcess,
+    transit_http: &str,
+    transit_npub: &str,
+    roles: &[&str; 3],
+    chat_owner: &str,
+    reader: &str,
+    evidence: &mut Value,
+) -> Result<()> {
+    let started = Instant::now();
+    evidence["started_unix_ms"] = json!(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());
+    let before = [
+        endpoint_counter_boundary(chat).await?,
+        endpoint_counter_boundary(drive).await?,
+    ];
+    evidence["first_endpoints"] = json!(before);
+    let before_traffic = transit_traffic(transit_http, roles, chat_owner, reader).await?;
+    let mut polls = 0u64;
+    loop {
+        let current = endpoint_counter_boundary(drive).await?;
+        polls += 1;
+        evidence["polls"] = json!(polls);
+        evidence["seconds"] = json!(started.elapsed().as_secs_f64());
+        evidence["last_endpoint"] = current.clone();
+        let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+        // Five seconds is headroom for the boundary RPCs, not a settling sleep.
+        // Coverage is checked again against the actual measurement start below.
+        if negotiation_readiness::ready(
+            &current["negotiation"],
+            roles[0],
+            transit_npub,
+            now_ms + 70_000,
+        )? {
+            let after = [endpoint_counter_boundary(chat).await?, current];
+            let after_traffic = transit_traffic(transit_http, roles, chat_owner, reader).await?;
+            let (traffic, per_role) = traffic_delta(&before_traffic, &after_traffic)?;
+            evidence["endpoint_traffic"] = endpoint_traffic::evidence(&before, &after)?;
+            evidence["wire"] = json!({"sent_bytes": traffic[0], "received_bytes": traffic[1],
+                "sent_packets": traffic[2], "received_packets": traffic[3], "per_role": per_role});
+            evidence["seconds"] = json!(started.elapsed().as_secs_f64());
+            evidence["finished_unix_ms"] =
+                json!(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());
+            evidence["status"] = json!("controlled-initial-attempts-complete");
+            evidence["scope"] = json!(
+                "Drive-to-Chat initial traversal in the pinned isolated fixture; not a global task-drain acknowledgement"
+            );
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+}
+
+fn retain_readiness_failure(phase: &str, evidence: &Value) -> Result<()> {
+    if let Some(path) = std::env::var_os("IRIS_STACK_MESH_METRICS_PATH") {
+        let mut metrics = if std::path::Path::new(&path).exists() {
+            serde_json::from_slice::<Value>(&fs::read(&path)?)?
+        } else {
+            json!({"status": "incomplete", "functional_recovery_complete": false})
+        };
+        metrics["readiness_failure"] = json!({"phase": phase, "startup": evidence});
+        fs::write(path, serde_json::to_vec_pretty(&metrics)?)?;
+    }
+    Ok(())
+}
+
 async fn endpoint_counter_boundary(process: &mut ManagedProcess) -> Result<Value> {
     let started = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let current = status(process).await?;
     let snapshot = endpoint_traffic::validate(&current["traffic"])?;
     let finished = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-    Ok(json!({"started_unix_ms": started, "finished_unix_ms": finished, "snapshot": snapshot}))
+    let negotiation = &current["negotiation"];
+    ensure!(
+        serde_json::to_vec(negotiation)?.len() <= 8192,
+        "negotiation snapshot exceeds cap"
+    );
+    let observed = negotiation["observed_unix_ms"]
+        .as_u64()
+        .context("missing negotiation clock")?;
+    ensure!(
+        u128::from(observed) >= started && u128::from(observed) <= finished,
+        "stale negotiation observation"
+    );
+    Ok(
+        json!({"started_unix_ms": started, "finished_unix_ms": finished,
+        "snapshot": snapshot, "negotiation": negotiation}),
+    )
 }
 
 // These are occurrences of existing log messages, never a packet-type byte
