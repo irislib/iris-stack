@@ -18,7 +18,7 @@ PUBLIC_SOURCES = {
 }
 PRODUCTS = [
     ("hashtree", "HTREE", "hashtree-cli", "fips-webrtc,git-remote-wrapper", ["htree", "git-remote-htree"], ""),
-    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "2f25008701f68894671e85225cf62d2f522b4921"),
+    ("drive", "DRIVE", "iris-drive-core", "stack-fixture", ["iris-drive-stack-fixture"], "82d1e21585287a8327fbe67053d90104bdb62dc2"),
     ("chat", "CHAT", "iris-chat", "stack-fixture", ["iris-chat-stack-fixture"], "5f011a050a74356e715f5cf3055157f809efbf1e"),
 ]
 

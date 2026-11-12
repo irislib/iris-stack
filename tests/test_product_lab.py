@@ -104,7 +104,7 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
         self.assertEqual(receipt["products"]["hashtree"]["rev"],
                          "458702aada89c0629df9456df38fef9c3f8f6a61")
         self.assertEqual(receipt["products"]["drive"]["rev"],
-                         "2f25008701f68894671e85225cf62d2f522b4921")
+                         "82d1e21585287a8327fbe67053d90104bdb62dc2")
         self.assertEqual(receipt["products"]["chat"]["rev"],
                          "5f011a050a74356e715f5cf3055157f809efbf1e")
         self.assertEqual(receipt["metrics"]["public_relays"], 0)
@@ -190,7 +190,7 @@ if "relayless_mesh_product" in args and not os.environ.get("TEST_NO_METRICS"):
             self.assertEqual(inputs["products"][name]["sha256"],
                              hashlib.sha256((self.install / "bin" / binary).read_bytes()).hexdigest())
         self.assertEqual(inputs["products"]["drive"]["rev"],
-                         "2f25008701f68894671e85225cf62d2f522b4921")
+                         "82d1e21585287a8327fbe67053d90104bdb62dc2")
         self.assertFalse((self.install / "bin/iris-chat-stack-fixture").exists())
         self.assertFalse((self.install / "receipt.json").exists())
         self.assertFalse((self.install / "mesh-metrics.json").exists())

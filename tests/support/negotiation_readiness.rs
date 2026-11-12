@@ -38,7 +38,7 @@ pub(super) fn ready(
     );
     let proof = &snapshot["observations"];
     ensure!(
-        proof["version"] == 1 && proof["expected_peer"] == target,
+        proof["version"] == 2 && proof["expected_peer"] == target,
         "negotiation target/schema mismatch"
     );
     ensure!(
@@ -49,7 +49,6 @@ pub(super) fn ready(
         .as_array()
         .context("missing initiated attempts")?;
     ensure!(attempts.len() <= 32, "negotiation evidence exceeds bound");
-    let mut tokens = BTreeSet::new();
     let mut complete = !attempts.is_empty();
     for (i, attempt) in attempts.iter().enumerate() {
         ensure!(
@@ -66,16 +65,14 @@ pub(super) fn ready(
             matches!(terminal, "pending" | "authenticated-unsupported"),
             "unknown terminal outcome"
         );
-        if let Some(token) = attempt["session_token"].as_str() {
+        if let Some(token) = attempt["session_prefix"].as_str() {
             ensure!(
-                token.len() == 8
-                    && token.bytes().all(|b| b.is_ascii_hexdigit())
-                    && tokens.insert(token),
-                "ambiguous or malformed session token"
+                token.len() == 8 && token.bytes().all(|b| b.is_ascii_digit()),
+                "malformed session display prefix"
             );
         } else {
             ensure!(
-                attempt.get("session_token") == Some(&Value::Null)
+                attempt.get("session_prefix") == Some(&Value::Null)
                     && !answered
                     && terminal == "pending",
                 "missing session correlation"
@@ -83,6 +80,16 @@ pub(super) fn ready(
         }
         if terminal == "authenticated-unsupported" {
             ensure!(answered, "terminal without answer");
+            ensure!(
+                attempt["terminal_failure_count"].as_u64() == Some(i as u64 + 1),
+                "missing or out-of-order full-peer terminal counter"
+            );
+        } else {
+            ensure!(i + 1 == attempts.len(), "overlapping serial attempts");
+            ensure!(
+                attempt.get("terminal_failure_count") == Some(&Value::Null),
+                "pending attempt has terminal counter"
+            );
         }
         complete &= terminal == "authenticated-unsupported";
     }
@@ -180,8 +187,8 @@ mod tests {
             "direct_probe_after_ms":after,"nostr_traversal_consecutive_failures":count,
             "nostr_traversal_in_cooldown":after.is_some(),"nostr_traversal_cooldown_until_ms":after})
         };
-        json!({"version":1,"observed_unix_ms":1000,"observations":{"version":1,"expected_peer":"chat","invalid":false,
-            "attempts":[{"ordinal":1,"session_token":"1234abcd","answer_received":true,"terminal":"authenticated-unsupported"}]},
+        json!({"version":1,"observed_unix_ms":1000,"observations":{"version":2,"expected_peer":"chat","invalid":false,
+            "attempts":[{"ordinal":1,"session_prefix":"17945015","answer_received":true,"terminal":"authenticated-unsupported","terminal_failure_count":1}]},
             "peers":[peer("transit",true,false,0,None),peer("chat",false,true,1,Some(200000))]})
     }
     #[test]
@@ -211,7 +218,10 @@ mod tests {
                 3 => {
                     s["peers"].as_array_mut().unwrap().remove(0);
                 }
-                _ => s["observations"]["attempts"][0]["terminal"] = json!("pending"),
+                _ => {
+                    s["observations"]["attempts"][0]["terminal"] = json!("pending");
+                    s["observations"]["attempts"][0]["terminal_failure_count"] = Value::Null;
+                }
             }
             assert!(
                 !ready(&s, "chat", "transit", 66000).unwrap(),
@@ -245,7 +255,31 @@ mod tests {
             .as_array_mut()
             .unwrap()
             .push(json!({"ordinal":2,
-            "session_token":null,"answer_received":false,"terminal":"pending"}));
+            "session_prefix":null,"answer_received":false,"terminal":"pending","terminal_failure_count":null}));
         assert!(!ready(&s, "chat", "transit", 66000).unwrap());
+    }
+    #[test]
+    fn repeated_display_prefix_requires_ordered_full_peer_terminal_counters() {
+        let mut s = snapshot();
+        let mut second = s["observations"]["attempts"][0].clone();
+        second["ordinal"] = json!(2);
+        second["terminal_failure_count"] = json!(2);
+        s["observations"]["attempts"]
+            .as_array_mut()
+            .unwrap()
+            .push(second);
+        s["peers"][1]["nostr_traversal_consecutive_failures"] = json!(2);
+        assert!(ready(&s, "chat", "transit", 66000).unwrap());
+        for bad in [Value::Null, json!(0), json!(1), json!(3), json!("2")] {
+            let mut changed = s.clone();
+            changed["observations"]["attempts"][1]["terminal_failure_count"] = bad;
+            assert!(ready(&changed, "chat", "transit", 66000).is_err());
+        }
+        let mut lagging_endpoint = s.clone();
+        lagging_endpoint["peers"][1]["nostr_traversal_consecutive_failures"] = json!(1);
+        assert!(!ready(&lagging_endpoint, "chat", "transit", 66000).unwrap());
+        s["observations"]["attempts"][0]["terminal"] = json!("pending");
+        s["observations"]["attempts"][0]["terminal_failure_count"] = Value::Null;
+        assert!(ready(&s, "chat", "transit", 66000).is_err());
     }
 }
