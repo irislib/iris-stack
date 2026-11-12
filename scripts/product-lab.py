@@ -91,7 +91,7 @@ def main():
             install_env = {**env, "CARGO_NET_GIT_FETCH_WITH_CLI": "true"}
             if product_provenance["source"].startswith("htree://"):
                 # Locate the public source announcement without changing product runtime relays.
-                install_env["NOSTR_RELAYS"] = "wss://relay.damus.io,wss://relay.primal.net"
+                install_env["NOSTR_RELAYS"] = "wss://relay.damus.io,wss://relay.primal.net,wss://temp.iris.to,wss://relay.snort.social"
             subprocess.run(command, check=True, env=install_env)
             binary = str(install / "bin" / binaries[0])
         require(os.access(binary, os.X_OK), f"Product binary is not executable: {binary}")
